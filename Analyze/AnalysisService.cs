@@ -7,12 +7,6 @@ using System.Text.RegularExpressions;
 using Microsoft.Extensions.Logging;
 using Dto;
 using Spectre.Console;
-using Microsoft.CodeAnalysis;
-using Microsoft.CodeAnalysis.MSBuild;
-using Microsoft.CodeAnalysis.Workspaces;
-using Microsoft.CodeAnalysis.CSharp;
-using Microsoft.CodeAnalysis.Host.Mef;
-using Microsoft.CodeAnalysis.Host;
 
 namespace Analyze;
 
@@ -81,19 +75,12 @@ public class AnalysisService
     public IEnumerable<string> GetSourceFiles()
     {
         var sourceFiles = new List<string>();
-        
         _logger.LogDebug($"Opening solution file: {_solutionPath}");
         
-        // Create workspace with C# support
-        var hostServices = MefHostServices.Create(MefHostServices.DefaultAssemblies);
-        using var workspace = new AdhocWorkspace(hostServices);
-        
-        // Manually load the solution file
+        // Parse the solution file to find project paths
         var solutionFile = File.ReadAllText(_solutionPath);
         var solutionDir = Path.GetDirectoryName(_solutionPath) ?? throw new InvalidOperationException("Solution directory is null");
-        
-        // Parse the solution file to find project paths
-        var projectMatches = System.Text.RegularExpressions.Regex.Matches(solutionFile, @"Project\(""[^""]+""\) = ""[^""]+"", ""([^""]+)""");
+        var projectMatches = Regex.Matches(solutionFile, @"Project\(""[^""]+""\) = ""[^""]+"", ""([^""]+)""");
         
         foreach (Match match in projectMatches)
         {
@@ -103,19 +90,7 @@ public class AnalysisService
             
             if (File.Exists(projectPath))
             {
-                var projectFile = File.ReadAllText(projectPath);
                 var projectName = Path.GetFileNameWithoutExtension(projectPath);
-                
-                // Add the project to the workspace with C# language
-                var projectInfo = ProjectInfo.Create(
-                    ProjectId.CreateNewId(),
-                    VersionStamp.Create(),
-                    projectName,
-                    projectName,
-                    LanguageNames.CSharp,
-                    filePath: projectPath);
-                
-                workspace.AddProject(projectInfo);
                 _logger.LogInformation($"Processing project: {projectName}");
                 
                 // Find all .cs files in the project directory
