@@ -5,7 +5,7 @@ using System.Linq;
 using System.Reflection;
 using System.Text.RegularExpressions;
 using Microsoft.Extensions.Logging;
-using Dto;
+// using Dto; // Removed because Dto is now loaded dynamically
 using Spectre.Console;
 
 namespace Analyze;
@@ -66,10 +66,16 @@ public class AnalysisService
 
     public IEnumerable<Type> GetDtoClasses()
     {
-        return Assembly.GetAssembly(typeof(UserEventDto))
-            ?.GetTypes()
-            .Where(t => t.Namespace == "Dto" && t.IsClass)
-            .ToList() ?? Enumerable.Empty<Type>();
+        // Path to the Dto.dll (adjust if needed)
+        var dtoDllPath = Path.Combine(_solutionDir, "Dto", "bin", "Debug", "net10.0", "Dto.dll");
+        if (!File.Exists(dtoDllPath))
+        {
+            throw new FileNotFoundException($"Dto.dll not found at {dtoDllPath}. Please build the Dto project first.");
+        }
+        var assembly = Assembly.LoadFrom(dtoDllPath);
+        return assembly.GetTypes()
+            .Where(t => t.IsClass && t.Namespace == "Dto")
+            .ToList();
     }
 
     public IEnumerable<string> GetSourceFiles()
