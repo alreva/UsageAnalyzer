@@ -8,5 +8,9 @@
     <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="17.13.0" />
     <PackageVersion Include="xunit" Version="2.9.2" />
     <PackageVersion Include="xunit.runner.visualstudio" Version="2.8.2" />
+    <PackageVersion Include="Spectre.Console" Version="0.48.0" />
+    <PackageVersion Include="Microsoft.Extensions.Logging" Version="8.0.0" />
+    <PackageVersion Include="Microsoft.Extensions.Logging.Console" Version="8.0.0" />
+    <PackageVersion Include="Microsoft.Extensions.Configuration.Json" Version="8.0.0" />
   </ItemGroup>
 </Project> 
