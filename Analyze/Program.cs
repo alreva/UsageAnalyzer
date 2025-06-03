@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Configuration;
 using Spectre.Console;
 
 namespace Analyze;
@@ -11,8 +12,13 @@ class Program
 {
     static void Main(string[] args)
     {
+        var configuration = new ConfigurationBuilder()
+            .SetBasePath(Directory.GetCurrentDirectory())
+            .AddJsonFile("appsettings.json", optional: false)
+            .Build();
+
         var services = new ServiceCollection();
-        ConfigureServices(services);
+        ConfigureServices(services, configuration);
         var serviceProvider = services.BuildServiceProvider();
 
         var logger = serviceProvider.GetRequiredService<ILogger<Program>>();
@@ -52,7 +58,7 @@ class Program
             var (classUsage, propertyUsage) = analysisService.AnalyzeUsage(
                 selectedClass,
                 sourceFiles,
-                progress => AnsiConsole.MarkupLine($"[yellow]{progress}[/]"));
+                progress => {});
 
             // Display results
             consoleUI.DisplayResults(classUsage, propertyUsage, selectedClass);
@@ -63,11 +69,12 @@ class Program
         }
     }
 
-    private static void ConfigureServices(IServiceCollection services)
+    private static void ConfigureServices(IServiceCollection services, IConfiguration configuration)
     {
         services.AddLogging(builder =>
         {
             builder.AddConsole();
+            builder.AddConfiguration(configuration.GetSection("Logging"));
         });
 
         services.AddSingleton<AnalysisService>();
