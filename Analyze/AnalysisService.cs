@@ -105,7 +105,8 @@ public class AnalysisService
                 
                 var csFiles = Directory.GetFiles(projectDir, "*.cs", SearchOption.AllDirectories)
                     .Where(f => !f.Contains(Path.DirectorySeparatorChar + "obj" + Path.DirectorySeparatorChar) && 
-                               !f.Contains(Path.DirectorySeparatorChar + "bin" + Path.DirectorySeparatorChar));
+                               !f.Contains(Path.DirectorySeparatorChar + "bin" + Path.DirectorySeparatorChar) &&
+                               !projectName.Contains("Tests"));
                 
                 foreach (var file in csFiles)
                 {
@@ -134,7 +135,7 @@ public class AnalysisService
         foreach (var file in sourceFiles)
         {
             var fileName = Path.GetFileName(file);
-            progressCallback($"Analyzing {fileName}");
+            _logger.LogDebug($"Analyzing {fileName}");
             _logger.LogDebug($"Analyzing file: {file}");
             
             var content = File.ReadAllText(file);
