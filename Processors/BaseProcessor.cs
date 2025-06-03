@@ -1,22 +1,21 @@
 using System;
 using System.Text.Json;
 using System.IO;
-using Dto;
 
 namespace Processors
 {
-    public abstract class BaseProcessor
+    public abstract class BaseProcessor<TDto> : IProcessor<TDto>
     {
         protected static readonly JsonSerializerOptions JsonOptions = new()
         {
             PropertyNameCaseInsensitive = true
         };
 
-        protected UserEventDto? DeserializeUserEvent(string jsonInput)
+        protected TDto? Deserialize(string jsonInput)
         {
             try
             {
-                return JsonSerializer.Deserialize<UserEventDto>(jsonInput, JsonOptions);
+                return JsonSerializer.Deserialize<TDto>(jsonInput, JsonOptions);
             }
             catch (JsonException ex)
             {
@@ -28,5 +27,7 @@ namespace Processors
         {
             output.WriteLine($"No {dataType} found.");
         }
+
+        public abstract void Process(string jsonInput, TextWriter output);
     }
 } 

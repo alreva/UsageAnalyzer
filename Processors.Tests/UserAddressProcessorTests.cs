@@ -8,7 +8,7 @@ namespace Processors.Tests
     public class UserAddressProcessorTests
     {
         [Fact]
-        public void ProcessUserAddress_ValidJson_WritesFormattedAddress()
+        public void Process_ValidJson_WritesFormattedAddress()
         {
             // Arrange
             var json = 
@@ -72,7 +72,7 @@ namespace Processors.Tests
             using var sw = new StringWriter();
 
             // Act
-            processor.ProcessUserAddress(json, sw);
+            processor.Process(json, sw);
             var output = sw.ToString();
 
             // Assert
@@ -85,7 +85,7 @@ namespace Processors.Tests
         }
 
         [Fact]
-        public void ProcessUserAddress_InvalidJson_ThrowsJsonException()
+        public void Process_InvalidJson_ThrowsJsonException()
         {
             // Arrange
             var json = "invalid json";
@@ -93,11 +93,11 @@ namespace Processors.Tests
             using var sw = new StringWriter();
 
             // Act & Assert
-            Assert.Throws<System.Text.Json.JsonException>(() => processor.ProcessUserAddress(json, sw));
+            Assert.Throws<System.Text.Json.JsonException>(() => processor.Process(json, sw));
         }
 
         [Fact]
-        public void ProcessUserAddress_NullAddress_WritesNoAddressMessage()
+        public void Process_NullAddress_WritesNoAddressMessage()
         {
             // Arrange
             var json = 
@@ -155,7 +155,7 @@ namespace Processors.Tests
             using var sw = new StringWriter();
 
             // Act
-            processor.ProcessUserAddress(json, sw);
+            processor.Process(json, sw);
             var output = sw.ToString();
 
             // Assert

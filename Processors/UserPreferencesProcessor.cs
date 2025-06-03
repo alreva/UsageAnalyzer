@@ -4,11 +4,11 @@ using Dto;
 
 namespace Processors
 {
-    public class UserPreferencesProcessor : BaseProcessor
+    public class UserPreferencesProcessor : BaseProcessor<UserEventDto>
     {
-        public void ProcessUserPreferences(string jsonInput, TextWriter output)
+        public override void Process(string jsonInput, TextWriter output)
         {
-            var userEventDto = DeserializeUserEvent(jsonInput);
+            var userEventDto = Deserialize(jsonInput);
             if (userEventDto?.User?.Preferences != null)
             {
                 var prefs = userEventDto.User.Preferences;

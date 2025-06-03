@@ -4,11 +4,11 @@ using Dto;
 
 namespace Processors
 {
-    public class UserAddressProcessor : BaseProcessor
+    public class UserAddressProcessor : BaseProcessor<UserEventDto>
     {
-        public void ProcessUserAddress(string jsonInput, TextWriter output)
+        public override void Process(string jsonInput, TextWriter output)
         {
-            var userEventDto = DeserializeUserEvent(jsonInput);
+            var userEventDto = Deserialize(jsonInput);
             if (userEventDto?.User?.Address != null)
             {
                 var address = userEventDto.User.Address;

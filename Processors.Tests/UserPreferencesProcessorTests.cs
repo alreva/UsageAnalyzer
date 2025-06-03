@@ -8,7 +8,7 @@ namespace Processors.Tests
     public class UserPreferencesProcessorTests
     {
         [Fact]
-        public void ProcessUserPreferences_ValidJson_WritesFormattedPreferences()
+        public void Process_ValidJson_WritesFormattedPreferences()
         {
             // Arrange
             var json = 
@@ -72,7 +72,7 @@ namespace Processors.Tests
             using var sw = new StringWriter();
 
             // Act
-            processor.ProcessUserPreferences(json, sw);
+            processor.Process(json, sw);
             var output = sw.ToString();
 
             // Assert
