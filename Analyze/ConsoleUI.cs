@@ -19,108 +19,97 @@ public class ConsoleUI
 
     public void DisplayWelcome()
     {
-        AnsiConsole.MarkupLine("[bold blue]Welcome to the Usage Analyzer![/]");
-        AnsiConsole.MarkupLine("[yellow]Please select a class to analyze:[/]");
+        AnsiConsole.MarkupLine("[bold blue]Welcome to the DTO Usage Analyzer![/]");
+        AnsiConsole.MarkupLine("This tool will help you analyze the usage of DTO classes in your solution.");
     }
 
-    public Type PromptForClassSelection(IEnumerable<Type> dtoClasses)
+    public Type? PromptForClassSelection(IEnumerable<Type> dtoClasses)
     {
-        if (!dtoClasses.Any())
+        var classes = dtoClasses.ToList();
+        if (!classes.Any())
         {
-            AnsiConsole.MarkupLine("[red]No classes found in the Dto namespace.[/]");
+            AnsiConsole.MarkupLine("[red]No DTO classes found in the Dto project.[/]");
             return null;
         }
 
-        return AnsiConsole.Prompt(
+        var selectedClass = AnsiConsole.Prompt(
             new SelectionPrompt<Type>()
-                .Title("Select a class to analyze:")
-                .PageSize(10)
-                .AddChoices(dtoClasses)
-                .UseConverter(type => type.Name));
+                .Title("Select a DTO class to analyze:")
+                .AddChoices(classes)
+                .UseConverter(t => t.Name));
+
+        return selectedClass;
     }
 
     public void DisplayAnalysisStart(Type selectedClass)
     {
-        AnsiConsole.MarkupLine($"\n[green]Analyzing usage of: {selectedClass.Name}[/]");
+        AnsiConsole.MarkupLine($"[green]Analyzing usage of {selectedClass.Name}...[/]");
     }
 
-    public void DisplayAnalysisProgress(Action<StatusContext> analysisAction)
+    public void DisplayAnalysisProgress(Action<StatusContext> updateStatus)
     {
         AnsiConsole.Status()
-            .Start("Analyzing files...", analysisAction);
+            .Start("Analyzing...", ctx => updateStatus(ctx));
     }
 
-    public void DisplayResults(Dictionary<string, int> classUsage, Dictionary<string, int> propertyUsage, Type selectedClass)
+    public void DisplayResults(
+        Dictionary<string, int> classUsage,
+        Dictionary<string, int> propertyUsage,
+        Type selectedClass)
     {
-        DisplayClassUsage(classUsage);
-        DisplayPropertyUsage(propertyUsage, selectedClass);
-    }
-
-    private void DisplayClassUsage(Dictionary<string, int> classUsage)
-    {
-        var classTable = new Table()
+        var table = new Table()
             .Border(TableBorder.Rounded)
-            .Title("[bold blue]Class Usage Statistics[/]")
-            .AddColumn("File")
-            .AddColumn("References");
+            .AddColumn(new TableColumn("[bold]File[/]").LeftAligned())
+            .AddColumn(new TableColumn("[bold]Usages[/]").RightAligned());
 
+        AnsiConsole.MarkupLine("\n[bold blue]Class Usage Analysis[/]");
         if (classUsage.Any())
         {
             foreach (var usage in classUsage.OrderByDescending(u => u.Value))
             {
-                classTable.AddRow(usage.Key, usage.Value.ToString());
+                table.AddRow(
+                    $"[green]{usage.Key}[/]",
+                    $"[yellow]{usage.Value}[/]"
+                );
             }
         }
         else
         {
-            classTable.AddRow("[red]No direct class usage found[/]", "");
+            table.AddRow("[red]No direct class usage found[/]", "0");
         }
+        AnsiConsole.Write(table);
 
-        AnsiConsole.Write(classTable);
-    }
-
-    private void DisplayPropertyUsage(Dictionary<string, int> propertyUsage, Type selectedClass)
-    {
-        var propertyTable = new Table()
+        table = new Table()
             .Border(TableBorder.Rounded)
-            .Title("[bold blue]Property Usage Statistics[/]")
-            .AddColumn("Property")
-            .AddColumn("Type")
-            .AddColumn("File")
-            .AddColumn("References");
+            .AddColumn(new TableColumn("[bold]Property[/]").LeftAligned())
+            .AddColumn(new TableColumn("[bold]File[/]").LeftAligned())
+            .AddColumn(new TableColumn("[bold]Usages[/]").RightAligned());
 
-        var properties = selectedClass.GetProperties();
-        foreach (var prop in properties)
+        AnsiConsole.MarkupLine("\n[bold blue]Property Usage Analysis[/]");
+        foreach (var prop in selectedClass.GetProperties())
         {
-            var propUsages = propertyUsage
-                .Where(u => u.Key.EndsWith($".{prop.Name}"))
-                .OrderByDescending(u => u.Value);
-
-            if (propUsages.Any())
+            var usages = propertyUsage.Where(u => u.Key.EndsWith($".{prop.Name}")).ToList();
+            if (usages.Any())
             {
-                foreach (var usage in propUsages)
+                foreach (var usage in usages.OrderByDescending(u => u.Value))
                 {
-                    var fileInfo = usage.Key.Split('.')[0];
-                    propertyTable.AddRow(
-                        prop.Name,
-                        prop.PropertyType.Name,
-                        fileInfo,
-                        usage.Value.ToString()
+                    table.AddRow(
+                        $"[green]{prop.Name}[/]",
+                        $"[blue]{usage.Key}[/]",
+                        $"[yellow]{usage.Value}[/]"
                     );
                 }
             }
             else
             {
-                propertyTable.AddRow(
-                    prop.Name,
-                    prop.PropertyType.Name,
+                table.AddRow(
+                    $"[green]{prop.Name}[/]",
                     "[red]No usage found[/]",
-                    ""
+                    "0"
                 );
             }
         }
-
-        AnsiConsole.Write(propertyTable);
+        AnsiConsole.Write(table);
     }
 
     public void DisplayError(Exception ex)

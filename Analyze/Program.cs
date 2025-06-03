@@ -1,64 +1,77 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Reflection;
-using System.Text.RegularExpressions;
-using System.IO;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Dto;
 using Spectre.Console;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Configuration;
-using Analyze;
 
-// Load configuration from appsettings.json
-var configuration = new ConfigurationBuilder()
-    .SetBasePath(Directory.GetCurrentDirectory())
-    .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
-    .Build();
+namespace Analyze;
 
-// Set up logger using configuration
-using var loggerFactory = LoggerFactory.Create(builder =>
+class Program
 {
-    builder
-        .AddConfiguration(configuration.GetSection("Logging"))
-        .AddConsole();
-});
-ILogger logger = loggerFactory.CreateLogger("Analyzer");
-
-try
-{
-    var consoleUI = new ConsoleUI(logger);
-    var analysisService = new AnalysisService(logger);
-
-    consoleUI.DisplayWelcome();
-
-    // Get all classes from the Dto namespace
-    var dtoClasses = analysisService.GetDtoClasses();
-    var selectedClass = consoleUI.PromptForClassSelection(dtoClasses);
-
-    if (selectedClass == null)
+    static void Main(string[] args)
     {
-        return;
+        var services = new ServiceCollection();
+        ConfigureServices(services);
+        var serviceProvider = services.BuildServiceProvider();
+
+        var logger = serviceProvider.GetRequiredService<ILogger<Program>>();
+        var analysisService = serviceProvider.GetRequiredService<AnalysisService>();
+        var consoleUI = new ConsoleUI(logger);
+
+        try
+        {
+            consoleUI.DisplayWelcome();
+
+            // Get all DTO classes
+            var dtoClasses = analysisService.GetDtoClasses().ToList();
+            if (!dtoClasses.Any())
+            {
+                AnsiConsole.MarkupLine("[red]No DTO classes found in the Dto project.[/]");
+                return;
+            }
+
+            // Let user select a class
+            var selectedClass = consoleUI.PromptForClassSelection(dtoClasses);
+            if (selectedClass == null)
+            {
+                return;
+            }
+
+            consoleUI.DisplayAnalysisStart(selectedClass);
+
+            // Get source files
+            var sourceFiles = analysisService.GetSourceFiles().ToList();
+            if (!sourceFiles.Any())
+            {
+                AnsiConsole.MarkupLine("[red]No source files found to analyze.[/]");
+                return;
+            }
+
+            // Analyze usage
+            var (classUsage, propertyUsage) = analysisService.AnalyzeUsage(
+                selectedClass,
+                sourceFiles,
+                progress => AnsiConsole.MarkupLine($"[yellow]{progress}[/]"));
+
+            // Display results
+            consoleUI.DisplayResults(classUsage, propertyUsage, selectedClass);
+        }
+        catch (Exception ex)
+        {
+            consoleUI.DisplayError(ex);
+        }
     }
 
-    consoleUI.DisplayAnalysisStart(selectedClass);
-    
-    // Get all source files in the solution
-    var sourceFiles = analysisService.GetSourceFiles();
+    private static void ConfigureServices(IServiceCollection services)
+    {
+        services.AddLogging(builder =>
+        {
+            builder.AddConsole();
+            builder.SetMinimumLevel(LogLevel.Debug);
+        });
 
-    // Analyze class and property usage
-    var result = analysisService.AnalyzeUsage(
-        selectedClass,
-        sourceFiles,
-        status => consoleUI.DisplayAnalysisProgress(ctx => ctx.Status(status))
-    );
-
-    // Display results
-    consoleUI.DisplayResults(result.classUsage, result.propertyUsage, selectedClass);
-}
-catch (Exception ex)
-{
-    AnsiConsole.MarkupLine($"[red]An error occurred: {ex.Message}[/]");
-    AnsiConsole.MarkupLine($"[red]Stack trace: {ex.StackTrace}[/]");
-    logger.LogError(ex, "An error occurred during analysis");
+        services.AddSingleton<AnalysisService>();
+    }
 }
