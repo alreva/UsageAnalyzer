@@ -68,7 +68,6 @@ class Program
         services.AddLogging(builder =>
         {
             builder.AddConsole();
-            builder.SetMinimumLevel(LogLevel.Debug);
         });
 
         services.AddSingleton<AnalysisService>();
