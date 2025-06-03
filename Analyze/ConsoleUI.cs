@@ -92,9 +92,10 @@ public class ConsoleUI
             {
                 foreach (var usage in usages.OrderByDescending(u => u.Value))
                 {
+                    var filePath = usage.Key.Substring(0, usage.Key.LastIndexOf('.'));
                     table.AddRow(
                         $"[green]{prop.Name}[/]",
-                        $"[blue]{usage.Key}[/]",
+                        $"[blue]{filePath}[/]",
                         $"[yellow]{usage.Value}[/]"
                     );
                 }

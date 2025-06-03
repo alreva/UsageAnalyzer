@@ -156,7 +156,11 @@ public class AnalysisService
                 if (propMatches.Count > 0)
                 {
                     var key = $"{projectName}/{fileName}.{prop.Name}";
-                    propertyUsage[key] = propMatches.Count;
+                    if (!propertyUsage.ContainsKey(key))
+                    {
+                        propertyUsage[key] = 0;
+                    }
+                    propertyUsage[key] += propMatches.Count;
                 }
             }
         }
