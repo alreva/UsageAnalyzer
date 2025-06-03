@@ -90,6 +90,15 @@ namespace Dto.Tests
             var deserializedUserEventDto = JsonSerializer.Deserialize<UserEventDto>(jsonString);
 
             // Assert
+            Assert.NotNull(deserializedUserEventDto);
+            Assert.NotNull(deserializedUserEventDto.User);
+            Assert.NotNull(deserializedUserEventDto.User.Address);
+            Assert.NotNull(deserializedUserEventDto.User.Preferences);
+            Assert.NotNull(deserializedUserEventDto.User.SocialMedia);
+            Assert.NotNull(deserializedUserEventDto.User.DeviceInfo);
+            Assert.NotNull(deserializedUserEventDto.User.ActivityLog);
+            Assert.Equal(2, deserializedUserEventDto.User.ActivityLog.Count);
+
             Assert.Equal(userEventDto.EventId, deserializedUserEventDto.EventId);
             Assert.Equal(userEventDto.Timestamp, deserializedUserEventDto.Timestamp);
             Assert.Equal(userEventDto.Source, deserializedUserEventDto.Source);
@@ -131,7 +140,6 @@ namespace Dto.Tests
             Assert.Equal(userEventDto.User.DeviceInfo.Os, deserializedUserEventDto.User.DeviceInfo.Os);
             Assert.Equal(userEventDto.User.DeviceInfo.Browser, deserializedUserEventDto.User.DeviceInfo.Browser);
             Assert.Equal(userEventDto.User.DeviceInfo.IpAddress, deserializedUserEventDto.User.DeviceInfo.IpAddress);
-            Assert.Equal(userEventDto.User.ActivityLog.Count, deserializedUserEventDto.User.ActivityLog.Count);
             Assert.Equal(userEventDto.User.ActivityLog[0].Action, deserializedUserEventDto.User.ActivityLog[0].Action);
             Assert.Equal(userEventDto.User.ActivityLog[0].Timestamp, deserializedUserEventDto.User.ActivityLog[0].Timestamp);
             Assert.Equal(userEventDto.User.ActivityLog[1].Action, deserializedUserEventDto.User.ActivityLog[1].Action);

@@ -1,18 +1,14 @@
 using System;
-using System.Text.Json;
 using System.IO;
 using Dto;
 
 namespace Processors
 {
-    public class UserPreferencesProcessor
+    public class UserPreferencesProcessor : BaseProcessor
     {
         public void ProcessUserPreferences(string jsonInput, TextWriter output)
         {
-            var userEventDto = JsonSerializer.Deserialize<UserEventDto>(
-                jsonInput,
-                new JsonSerializerOptions { PropertyNameCaseInsensitive = true }
-            );
+            var userEventDto = DeserializeUserEvent(jsonInput);
             if (userEventDto?.User?.Preferences != null)
             {
                 var prefs = userEventDto.User.Preferences;
@@ -25,7 +21,7 @@ namespace Processors
             }
             else
             {
-                output.WriteLine("No user preferences found.");
+                WriteNoDataMessage(output, "user preferences");
             }
         }
     }
