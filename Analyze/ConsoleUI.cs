@@ -56,7 +56,8 @@ public class ConsoleUI
         Dictionary<string, int> propertyUsage,
         Type selectedClass)
     {
-        var table = new Table()
+        // Class Usage Table
+        var classTable = new Table()
             .Border(TableBorder.Rounded)
             .AddColumn(new TableColumn("[bold]File[/]").LeftAligned())
             .AddColumn(new TableColumn("[bold]Usages[/]").RightAligned());
@@ -66,7 +67,7 @@ public class ConsoleUI
         {
             foreach (var usage in classUsage.OrderByDescending(u => u.Value))
             {
-                table.AddRow(
+                classTable.AddRow(
                     $"[green]{usage.Key}[/]",
                     $"[yellow]{usage.Value}[/]"
                 );
@@ -74,42 +75,54 @@ public class ConsoleUI
         }
         else
         {
-            table.AddRow("[red]No direct class usage found[/]", "0");
+            classTable.AddRow("[red]No direct class usage found[/]", "0");
         }
-        AnsiConsole.Write(table);
+        AnsiConsole.Write(classTable);
 
-        table = new Table()
+        // Property Usage Table
+        var propertyTable = new Table()
             .Border(TableBorder.Rounded)
             .AddColumn(new TableColumn("[bold]Property[/]").LeftAligned())
             .AddColumn(new TableColumn("[bold]File[/]").LeftAligned())
             .AddColumn(new TableColumn("[bold]Usages[/]").RightAligned());
 
         AnsiConsole.MarkupLine("\n[bold blue]Property Usage Analysis[/]");
-        foreach (var prop in selectedClass.GetProperties())
+        
+        // Group by full property path
+        var propertyGroups = propertyUsage
+            .Select(u => {
+                var parts = u.Key.Split('|');
+                return new { File = parts[0], PropertyPath = parts[1], Count = u.Value };
+            })
+            .GroupBy(x => x.PropertyPath)
+            .OrderBy(g => g.Key);
+
+        foreach (var group in propertyGroups)
         {
-            var usages = propertyUsage.Where(u => u.Key.EndsWith($".{prop.Name}")).ToList();
+            var propertyPath = group.Key;
+            var usages = group.ToList();
+            
             if (usages.Any())
             {
-                foreach (var usage in usages.OrderByDescending(u => u.Value))
+                foreach (var usage in usages.OrderByDescending(u => u.Count))
                 {
-                    var filePath = usage.Key.Substring(0, usage.Key.LastIndexOf('.'));
-                    table.AddRow(
-                        $"[green]{prop.Name}[/]",
-                        $"[blue]{filePath}[/]",
-                        $"[yellow]{usage.Value}[/]"
+                    propertyTable.AddRow(
+                        $"[green]{propertyPath}[/]",
+                        $"[blue]{usage.File}[/]",
+                        $"[yellow]{usage.Count}[/]"
                     );
                 }
             }
             else
             {
-                table.AddRow(
-                    $"[green]{prop.Name}[/]",
+                propertyTable.AddRow(
+                    $"[green]{propertyPath}[/]",
                     "[red]No usage found[/]",
                     "0"
                 );
             }
         }
-        AnsiConsole.Write(table);
+        AnsiConsole.Write(propertyTable);
     }
 
     public void DisplayError(Exception ex)
