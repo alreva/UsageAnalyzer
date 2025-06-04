@@ -51,10 +51,26 @@ public class ConsoleUI
             .Start("Analyzing...", ctx => updateStatus(ctx));
     }
 
+    public enum PropertyUsageFormat
+    {
+        TotalUsages,
+        UsagesPerFile
+    }
+
+    public PropertyUsageFormat PromptForPropertyUsageFormat()
+    {
+        var choice = AnsiConsole.Prompt(
+            new SelectionPrompt<string>()
+                .Title("How would you like to display property usage?")
+                .AddChoices("Show only total usages", "Show usages per file"));
+        return choice == "Show usages per file" ? PropertyUsageFormat.UsagesPerFile : PropertyUsageFormat.TotalUsages;
+    }
+
     public void DisplayResults(
         Dictionary<string, int> classUsage,
         Dictionary<string, int> propertyUsage,
-        Type selectedClass)
+        Type selectedClass,
+        PropertyUsageFormat propertyUsageFormat)
     {
         // Class Usage Table
         var classTable = new Table()
@@ -80,30 +96,53 @@ public class ConsoleUI
         AnsiConsole.Write(classTable);
 
         // Property Usage Table
-        var propertyTable = new Table()
-            .Border(TableBorder.Rounded)
-            .AddColumn(new TableColumn("[bold]Property[/]").LeftAligned())
-            .AddColumn(new TableColumn("[bold]File[/]").LeftAligned())
-            .AddColumn(new TableColumn("[bold]Usages[/]").RightAligned());
-
         AnsiConsole.MarkupLine("\n[bold blue]Property Usage Analysis[/]");
-        
-        // Group by full property path
-        var propertyGroups = propertyUsage
-            .Select(u => {
-                var parts = u.Key.Split('|');
-                return new { File = parts[0], PropertyPath = parts[1], Count = u.Value };
-            })
-            .GroupBy(x => x.PropertyPath)
-            .OrderBy(g => g.Key);
-
-        foreach (var group in propertyGroups)
+        if (propertyUsageFormat == PropertyUsageFormat.TotalUsages)
         {
-            var propertyPath = group.Key;
-            var usages = group.ToList();
-            
-            if (usages.Any())
+            var propertyTable = new Table()
+                .Border(TableBorder.Rounded)
+                .AddColumn(new TableColumn("[bold]Property[/]").LeftAligned())
+                .AddColumn(new TableColumn("[bold]Total Usages[/]").RightAligned());
+
+            var propertyGroups = propertyUsage
+                .Select(u => {
+                    var parts = u.Key.Split('|');
+                    return new { PropertyPath = parts[1], Count = u.Value };
+                })
+                .GroupBy(x => x.PropertyPath)
+                .OrderBy(g => g.Key);
+
+            foreach (var group in propertyGroups)
             {
+                var propertyPath = group.Key;
+                var totalUsages = group.Sum(x => x.Count);
+                propertyTable.AddRow(
+                    $"[green]{propertyPath}[/]",
+                    $"[yellow]{totalUsages}[/]"
+                );
+            }
+            AnsiConsole.Write(propertyTable);
+        }
+        else // UsagesPerFile
+        {
+            var propertyTable = new Table()
+                .Border(TableBorder.Rounded)
+                .AddColumn(new TableColumn("[bold]Property[/]").LeftAligned())
+                .AddColumn(new TableColumn("[bold]File[/]").LeftAligned())
+                .AddColumn(new TableColumn("[bold]Usages[/]").RightAligned());
+
+            var propertyGroups = propertyUsage
+                .Select(u => {
+                    var parts = u.Key.Split('|');
+                    return new { File = parts[0], PropertyPath = parts[1], Count = u.Value };
+                })
+                .GroupBy(x => x.PropertyPath)
+                .OrderBy(g => g.Key);
+
+            foreach (var group in propertyGroups)
+            {
+                var propertyPath = group.Key;
+                var usages = group.ToList();
                 foreach (var usage in usages.OrderByDescending(u => u.Count))
                 {
                     propertyTable.AddRow(
@@ -113,16 +152,8 @@ public class ConsoleUI
                     );
                 }
             }
-            else
-            {
-                propertyTable.AddRow(
-                    $"[green]{propertyPath}[/]",
-                    "[red]No usage found[/]",
-                    "0"
-                );
-            }
+            AnsiConsole.Write(propertyTable);
         }
-        AnsiConsole.Write(propertyTable);
     }
 
     public void DisplayError(Exception ex)

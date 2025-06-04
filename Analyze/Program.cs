@@ -44,6 +44,9 @@ class Program
                 return;
             }
 
+            // Ask user for property usage output format
+            var propertyUsageFormat = consoleUI.PromptForPropertyUsageFormat();
+
             consoleUI.DisplayAnalysisStart(selectedClass);
 
             // Get source files
@@ -61,7 +64,7 @@ class Program
                 progress => {});
 
             // Display results
-            consoleUI.DisplayResults(classUsage, propertyUsage, selectedClass);
+            consoleUI.DisplayResults(classUsage, propertyUsage, selectedClass, propertyUsageFormat);
         }
         catch (Exception ex)
         {
