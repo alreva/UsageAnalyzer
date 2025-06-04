@@ -7,7 +7,7 @@ namespace Analyze;
 
 public class Program
 {
-    private static void Main(string[] args)
+    private static async Task Main(string[] args)
     {
         var configuration = new ConfigurationBuilder()
             .SetBasePath(Directory.GetCurrentDirectory())
@@ -46,18 +46,9 @@ public class Program
 
             consoleUI.DisplayAnalysisStart(selectedClass);
 
-            // Get source files
-            var sourceFiles = analysisService.GetSourceFiles().ToList();
-            if (!sourceFiles.Any())
-            {
-                AnsiConsole.MarkupLine("[red]No source files found to analyze.[/]");
-                return;
-            }
-
             // Analyze usage
-            var (classUsage, propertyUsage) = analysisService.AnalyzeUsage(
+            var (classUsage, propertyUsage) = await analysisService.AnalyzeUsageAsync(
                 selectedClass,
-                sourceFiles,
                 progress => {});
 
             // Display results
