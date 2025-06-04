@@ -1,17 +1,12 @@
-using System;
-using System.IO;
-using Processors;
-using Xunit;
+namespace Processors.Tests;
 
-namespace Processors.Tests
+public class UserPreferencesProcessorTests
 {
-    public class UserPreferencesProcessorTests
+    [Fact]
+    public void Process_ValidJson_WritesFormattedPreferences()
     {
-        [Fact]
-        public void Process_ValidJson_WritesFormattedPreferences()
-        {
-            // Arrange
-            var json = 
+        // Arrange
+        var json = 
             """
             {
                 "eventId": "12345",
@@ -68,20 +63,19 @@ namespace Processors.Tests
                 }
             }
             """;
-            var processor = new UserPreferencesProcessor();
-            using var sw = new StringWriter();
+        var processor = new UserPreferencesProcessor();
+        using var sw = new StringWriter();
 
-            // Act
-            processor.Process(json, sw);
-            var output = sw.ToString();
+        // Act
+        processor.Process(json, sw);
+        var output = sw.ToString();
 
-            // Assert
-            Assert.Contains("User Preferences:", output);
-            Assert.Contains("Theme: dark", output);
-            Assert.Contains("Language: en", output);
-            Assert.Contains("Notifications: True", output);
-            Assert.Contains("Newsletter: False", output);
-            Assert.Contains("Timezone: UTC-8", output);
-        }
+        // Assert
+        Assert.Contains("User Preferences:", output);
+        Assert.Contains("Theme: dark", output);
+        Assert.Contains("Language: en", output);
+        Assert.Contains("Notifications: True", output);
+        Assert.Contains("Newsletter: False", output);
+        Assert.Contains("Timezone: UTC-8", output);
     }
-} 
+}

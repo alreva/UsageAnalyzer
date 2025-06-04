@@ -1,17 +1,12 @@
-using System;
-using System.IO;
-using Processors;
-using Xunit;
+namespace Processors.Tests;
 
-namespace Processors.Tests
+public class UserAddressProcessorTests
 {
-    public class UserAddressProcessorTests
+    [Fact]
+    public void Process_ValidJson_WritesFormattedAddress()
     {
-        [Fact]
-        public void Process_ValidJson_WritesFormattedAddress()
-        {
-            // Arrange
-            var json = 
+        // Arrange
+        var json = 
             """
             {
                 "eventId": "12345",
@@ -68,39 +63,39 @@ namespace Processors.Tests
                 }
             }
             """;
-            var processor = new UserAddressProcessor();
-            using var sw = new StringWriter();
+        var processor = new UserAddressProcessor();
+        using var sw = new StringWriter();
 
-            // Act
-            processor.Process(json, sw);
-            var output = sw.ToString();
+        // Act
+        processor.Process(json, sw);
+        var output = sw.ToString();
 
-            // Assert
-            Assert.Contains("User Address:", output);
-            Assert.Contains("Street: 123 Main St", output);
-            Assert.Contains("City: Anytown", output);
-            Assert.Contains("State: CA", output);
-            Assert.Contains("Zip Code: 12345", output);
-            Assert.Contains("Country: USA", output);
-        }
+        // Assert
+        Assert.Contains("User Address:", output);
+        Assert.Contains("Street: 123 Main St", output);
+        Assert.Contains("City: Anytown", output);
+        Assert.Contains("State: CA", output);
+        Assert.Contains("Zip Code: 12345", output);
+        Assert.Contains("Country: USA", output);
+    }
 
-        [Fact]
-        public void Process_InvalidJson_ThrowsJsonException()
-        {
-            // Arrange
-            var json = "invalid json";
-            var processor = new UserAddressProcessor();
-            using var sw = new StringWriter();
+    [Fact]
+    public void Process_InvalidJson_ThrowsJsonException()
+    {
+        // Arrange
+        var json = "invalid json";
+        var processor = new UserAddressProcessor();
+        using var sw = new StringWriter();
 
-            // Act & Assert
-            Assert.Throws<System.Text.Json.JsonException>(() => processor.Process(json, sw));
-        }
+        // Act & Assert
+        Assert.Throws<System.Text.Json.JsonException>(() => processor.Process(json, sw));
+    }
 
-        [Fact]
-        public void Process_NullAddress_WritesNoAddressMessage()
-        {
-            // Arrange
-            var json = 
+    [Fact]
+    public void Process_NullAddress_WritesNoAddressMessage()
+    {
+        // Arrange
+        var json = 
             """
             {
                 "eventId": "12345",
@@ -151,15 +146,14 @@ namespace Processors.Tests
                 }
             }
             """;
-            var processor = new UserAddressProcessor();
-            using var sw = new StringWriter();
+        var processor = new UserAddressProcessor();
+        using var sw = new StringWriter();
 
-            // Act
-            processor.Process(json, sw);
-            var output = sw.ToString();
+        // Act
+        processor.Process(json, sw);
+        var output = sw.ToString();
 
-            // Assert
-            Assert.Contains("No user address found.", output);
-        }
+        // Assert
+        Assert.Contains("No user address found.", output);
     }
-} 
+}

@@ -1,33 +1,30 @@
-using System;
 using System.Text.Json;
-using System.IO;
 
-namespace Processors
+namespace Processors;
+
+public abstract class BaseProcessor<TDto> : IProcessor<TDto>
 {
-    public abstract class BaseProcessor<TDto> : IProcessor<TDto>
+    protected static readonly JsonSerializerOptions JsonOptions = new()
     {
-        protected static readonly JsonSerializerOptions JsonOptions = new()
-        {
-            PropertyNameCaseInsensitive = true
-        };
+        PropertyNameCaseInsensitive = true
+    };
 
-        protected TDto? Deserialize(string jsonInput)
+    protected TDto? Deserialize(string jsonInput)
+    {
+        try
         {
-            try
-            {
-                return JsonSerializer.Deserialize<TDto>(jsonInput, JsonOptions);
-            }
-            catch (JsonException ex)
-            {
-                throw new JsonException($"Failed to deserialize JSON input: {ex.Message}", ex);
-            }
+            return JsonSerializer.Deserialize<TDto>(jsonInput, JsonOptions);
         }
-
-        protected void WriteNoDataMessage(TextWriter output, string dataType)
+        catch (JsonException ex)
         {
-            output.WriteLine($"No {dataType} found.");
+            throw new JsonException($"Failed to deserialize JSON input: {ex.Message}", ex);
         }
-
-        public abstract void Process(string jsonInput, TextWriter output);
     }
-} 
+
+    protected void WriteNoDataMessage(TextWriter output, string dataType)
+    {
+        output.WriteLine($"No {dataType} found.");
+    }
+
+    public abstract void Process(string jsonInput, TextWriter output);
+}

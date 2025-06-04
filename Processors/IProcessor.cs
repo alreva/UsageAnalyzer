@@ -1,9 +1,6 @@
-using System.IO;
+namespace Processors;
 
-namespace Processors
+public interface IProcessor<TDto>
 {
-    public interface IProcessor<TDto>
-    {
-        void Process(string jsonInput, TextWriter output);
-    }
-} 
+    void Process(string jsonInput, TextWriter output);
+}

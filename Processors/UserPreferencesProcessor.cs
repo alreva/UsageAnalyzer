@@ -1,28 +1,25 @@
-using System;
-using System.IO;
 using Dto;
 
-namespace Processors
+namespace Processors;
+
+public class UserPreferencesProcessor : BaseProcessor<UserEventDto>
 {
-    public class UserPreferencesProcessor : BaseProcessor<UserEventDto>
+    public override void Process(string jsonInput, TextWriter output)
     {
-        public override void Process(string jsonInput, TextWriter output)
+        var userEventDto = Deserialize(jsonInput);
+        if (userEventDto?.User?.Preferences != null)
         {
-            var userEventDto = Deserialize(jsonInput);
-            if (userEventDto?.User?.Preferences != null)
-            {
-                var prefs = userEventDto.User.Preferences;
-                output.WriteLine($"User Preferences:");
-                output.WriteLine($"Theme: {prefs.Theme}");
-                output.WriteLine($"Language: {prefs.Language}");
-                output.WriteLine($"Notifications: {prefs.Notifications}");
-                output.WriteLine($"Newsletter: {prefs.Newsletter}");
-                output.WriteLine($"Timezone: {prefs.Timezone}");
-            }
-            else
-            {
-                WriteNoDataMessage(output, "user preferences");
-            }
+            var prefs = userEventDto.User.Preferences;
+            output.WriteLine($"User Preferences:");
+            output.WriteLine($"Theme: {prefs.Theme}");
+            output.WriteLine($"Language: {prefs.Language}");
+            output.WriteLine($"Notifications: {prefs.Notifications}");
+            output.WriteLine($"Newsletter: {prefs.Newsletter}");
+            output.WriteLine($"Timezone: {prefs.Timezone}");
+        }
+        else
+        {
+            WriteNoDataMessage(output, "user preferences");
         }
     }
-} 
+}
