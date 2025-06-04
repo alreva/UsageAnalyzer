@@ -100,6 +100,13 @@ public class AnalysisService
                 var projectName = Path.GetFileNameWithoutExtension(projectPath);
                 _logger.LogInformation($"Processing project: {projectName}");
                 
+                // Skip the Dto project
+                if (projectName == "Dto")
+                {
+                    _logger.LogInformation("Skipping Dto project.");
+                    continue;
+                }
+                
                 // Find all .cs files in the project directory
                 var projectDir = Path.GetDirectoryName(projectPath) ?? throw new InvalidOperationException("Project directory is null");
                 _logger.LogDebug($"Searching for .cs files in: {projectDir}");
@@ -147,17 +154,24 @@ public class AnalysisService
 
     private IEnumerable<(PropertyInfo Property, string FullPath)> GetDeepProperties(Type type, string prefix = "")
     {
+        _logger.LogDebug($"Getting deep properties for type: {type.FullName}, prefix: {prefix}");
         var properties = new List<(PropertyInfo Property, string FullPath)>();
         
         foreach (var prop in type.GetProperties())
         {
             var fullPath = string.IsNullOrEmpty(prefix) ? prop.Name : $"{prefix}.{prop.Name}";
             properties.Add((prop, fullPath));
+            _logger.LogDebug($"Added property: {fullPath}");
             
             // If the property type is not a primitive or array of primitives, continue recursion
             if (!IsPrimitiveOrArrayOfPrimitives(prop.PropertyType))
             {
+                _logger.LogDebug($"Property {fullPath} is complex type, recursing into {prop.PropertyType.FullName}");
                 properties.AddRange(GetDeepProperties(prop.PropertyType, fullPath));
+            }
+            else
+            {
+                _logger.LogDebug($"Property {fullPath} is primitive type: {prop.PropertyType.FullName}");
             }
         }
         
@@ -166,20 +180,24 @@ public class AnalysisService
 
     private IEnumerable<Type> GetNestedTypes(Type type)
     {
+        _logger.LogDebug($"Getting nested types for: {type.FullName}");
         var types = new HashSet<Type>();
         
         foreach (var prop in type.GetProperties())
         {
             var propType = prop.PropertyType;
+            _logger.LogDebug($"Checking property type: {propType.FullName}");
             
             // Handle arrays and collections
             if (propType.IsArray)
             {
                 propType = propType.GetElementType();
+                _logger.LogDebug($"Array type, element type: {propType?.FullName}");
             }
             else if (propType.IsGenericType && propType.GetGenericTypeDefinition() == typeof(List<>))
             {
                 propType = propType.GetGenericArguments()[0];
+                _logger.LogDebug($"List type, element type: {propType.FullName}");
             }
 
             // Only skip system types, primitives, enums, and already analyzed types
@@ -190,7 +208,12 @@ public class AnalysisService
                 (propType.Namespace == null || !propType.Namespace.StartsWith("System")) &&
                 !_analyzedTypes.Contains(propType))
             {
+                _logger.LogDebug($"Adding nested type: {propType.FullName}");
                 types.Add(propType);
+            }
+            else
+            {
+                _logger.LogDebug($"Skipping type {propType.FullName}: IsClass={propType.IsClass}, IsPrimitive={propType.IsPrimitive}, IsEnum={propType.IsEnum}, IsSystem={propType.Namespace?.StartsWith("System")}, AlreadyAnalyzed={_analyzedTypes.Contains(propType)}");
             }
         }
         
@@ -202,6 +225,7 @@ public class AnalysisService
         IEnumerable<string> sourceFiles,
         Action<string> progressCallback)
     {
+        _logger.LogDebug($"Starting analysis for class: {selectedClass.FullName}");
         var classUsage = new Dictionary<string, int>();
         var propertyUsage = new Dictionary<string, int>();
         _analyzedTypes.Clear();
@@ -209,6 +233,7 @@ public class AnalysisService
         // Queue of types to analyze
         var typesToAnalyze = new Queue<Type>();
         typesToAnalyze.Enqueue(selectedClass);
+        _logger.LogDebug($"Initial queue size: {typesToAnalyze.Count}");
 
         while (typesToAnalyze.Count > 0)
         {
@@ -216,19 +241,23 @@ public class AnalysisService
             
             // Skip if already analyzed
             if (_analyzedTypes.Contains(currentType))
+            {
+                _logger.LogDebug($"Skipping already analyzed type: {currentType.FullName}");
                 continue;
+            }
 
             _analyzedTypes.Add(currentType);
-            _logger.LogInformation($"Analyzing type: {currentType.Name}");
+            _logger.LogInformation($"Analyzing type: {currentType.FullName}");
+            _logger.LogDebug($"Queue size after dequeue: {typesToAnalyze.Count}");
 
             foreach (var file in sourceFiles)
             {
                 var fileName = Path.GetFileNameWithoutExtension(file);
-                _logger.LogDebug($"Analyzing {fileName}");
-                _logger.LogDebug($"Analyzing file: {file}");
+                _logger.LogDebug($"Analyzing file: {fileName}");
                 
                 var content = File.ReadAllText(file);
                 var projectName = Path.GetFileName(Path.GetDirectoryName(file));
+                _logger.LogDebug($"Project name: {projectName}");
 
                 // Count class usage (including type references)
                 var className = currentType.Name;
@@ -241,11 +270,13 @@ public class AnalysisService
                         classUsage[key] = 0;
                     }
                     classUsage[key] += classMatches.Count;
+                    _logger.LogDebug($"Found {classMatches.Count} usages of class {className} in {key}");
                 }
 
                 // Count property usage with full property paths
                 foreach (var (prop, fullPath) in GetDeepProperties(currentType))
                 {
+                    _logger.LogDebug($"Checking property: {fullPath}");
                     var propMatches = Regex.Matches(content, $@"\b{prop.Name}\b");
                     if (propMatches.Count > 0)
                     {
@@ -255,20 +286,30 @@ public class AnalysisService
                             propertyUsage[key] = 0;
                         }
                         propertyUsage[key] += propMatches.Count;
+                        _logger.LogDebug($"Found {propMatches.Count} usages of property {fullPath} in {key}");
                     }
                 }
             }
 
             // Add nested types to the queue for analysis (only DTO classes)
-            foreach (var nestedType in GetNestedTypes(currentType))
+            var nestedTypes = GetNestedTypes(currentType).ToList();
+            _logger.LogDebug($"Found {nestedTypes.Count} nested types in {currentType.FullName}");
+            
+            foreach (var nestedType in nestedTypes)
             {
                 if (nestedType.Assembly == selectedClass.Assembly)
                 {
+                    _logger.LogDebug($"Adding nested type to queue: {nestedType.FullName}");
                     typesToAnalyze.Enqueue(nestedType);
+                }
+                else
+                {
+                    _logger.LogDebug($"Skipping nested type from different assembly: {nestedType.FullName}");
                 }
             }
         }
 
+        _logger.LogDebug($"Analysis complete. Found {classUsage.Count} class usages and {propertyUsage.Count} property usages");
         return (classUsage, propertyUsage);
     }
 } 
