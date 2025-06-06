@@ -1,3 +1,5 @@
+using System.Text.Json;
+
 namespace Processors.Tests;
 
 public class UserAddressProcessorTests
@@ -6,7 +8,7 @@ public class UserAddressProcessorTests
     public void Process_ValidJson_WritesFormattedAddress()
     {
         // Arrange
-        var json = 
+        var json =
             """
             {
                 "eventId": "12345",
@@ -88,14 +90,14 @@ public class UserAddressProcessorTests
         using var sw = new StringWriter();
 
         // Act & Assert
-        Assert.Throws<System.Text.Json.JsonException>(() => processor.Process(json, sw));
+        Assert.Throws<JsonException>(() => processor.Process(json, sw));
     }
 
     [Fact]
     public void Process_NullAddress_WritesNoAddressMessage()
     {
         // Arrange
-        var json = 
+        var json =
             """
             {
                 "eventId": "12345",

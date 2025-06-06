@@ -32,9 +32,21 @@
     "paymentMethod": "credit card",
     "lastPaymentDate": "2023-09-15",
     "totalOrders": 15,
-    "favoriteCategories": ["electronics", "books", "clothing"],
-    "wishlist": ["item1", "item2", "item3"],
-    "recentSearches": ["laptop", "headphones", "smartphone"],
+    "favoriteCategories": [
+      "electronics",
+      "books",
+      "clothing"
+    ],
+    "wishlist": [
+      "item1",
+      "item2",
+      "item3"
+    ],
+    "recentSearches": [
+      "laptop",
+      "headphones",
+      "smartphone"
+    ],
     "cartItems": 3,
     "loyaltyPoints": 500,
     "referralCode": "REF123",

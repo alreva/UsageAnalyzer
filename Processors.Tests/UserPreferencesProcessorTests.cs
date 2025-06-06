@@ -6,7 +6,7 @@ public class UserPreferencesProcessorTests
     public void Process_ValidJson_WritesFormattedPreferences()
     {
         // Arrange
-        var json = 
+        var json =
             """
             {
                 "eventId": "12345",

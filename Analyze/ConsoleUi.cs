@@ -1,13 +1,19 @@
-using Spectre.Console;
 using Microsoft.Extensions.Logging;
+using Spectre.Console;
 
 namespace Analyze;
 
-public class ConsoleUI
+public class ConsoleUi
 {
+    public enum PropertyUsageFormat
+    {
+        TotalUsages,
+        UsagesPerFile
+    }
+
     private readonly ILogger _logger;
 
-    public ConsoleUI(ILogger logger)
+    public ConsoleUi(ILogger logger)
     {
         _logger = logger;
     }
@@ -47,24 +53,18 @@ public class ConsoleUI
             .Start("Analyzing...", ctx => updateStatus(ctx));
     }
 
-    public enum PropertyUsageFormat
-    {
-        TotalUsages,
-        UsagesPerFile
-    }
-
     public PropertyUsageFormat PromptForPropertyUsageFormat()
     {
         var choice = AnsiConsole.Prompt(
             new SelectionPrompt<string>()
                 .Title("How would you like to display property usage?")
-                .AddChoices("Show only total usages", "Show usages per file"));
+                .AddChoices("Show usages per file", "Show only total usages"));
         return choice == "Show usages per file" ? PropertyUsageFormat.UsagesPerFile : PropertyUsageFormat.TotalUsages;
     }
 
     public void DisplayResults(
         Dictionary<string, int> classUsage,
-        Dictionary<string, int> propertyUsage,
+        Dictionary<UsageKey, int> propertyUsage,
         Type selectedClass,
         PropertyUsageFormat propertyUsageFormat)
     {
@@ -89,6 +89,7 @@ public class ConsoleUI
         {
             classTable.AddRow("[red]No direct class usage found[/]", "0");
         }
+
         AnsiConsole.Write(classTable);
 
         // Property Usage Table
@@ -101,10 +102,7 @@ public class ConsoleUI
                 .AddColumn(new TableColumn("[bold]Total Usages[/]").RightAligned());
 
             var propertyGroups = propertyUsage
-                .Select(u => {
-                    var parts = u.Key.Split('|');
-                    return new { PropertyPath = parts[1], Count = u.Value };
-                })
+                .Select(u => new { PropertyPath = u.Key.Attribute, Count = u.Value })
                 .GroupBy(x => x.PropertyPath)
                 .OrderBy(g => g.Key);
 
@@ -117,6 +115,7 @@ public class ConsoleUI
                     $"[yellow]{totalUsages}[/]"
                 );
             }
+
             AnsiConsole.Write(propertyTable);
         }
         else // UsagesPerFile
@@ -128,26 +127,24 @@ public class ConsoleUI
                 .AddColumn(new TableColumn("[bold]Usages[/]").RightAligned());
 
             var propertyGroups = propertyUsage
-                .Select(u => {
-                    var parts = u.Key.Split('|');
-                    return new { File = parts[0], PropertyPath = parts[1], Count = u.Value };
-                })
+                .Select(u => { return new { File = u.Key.FilePath, PropertyPath = u.Key.Attribute, Count = u.Value }; })
                 .GroupBy(x => x.PropertyPath)
                 .OrderBy(g => g.Key);
 
             foreach (var group in propertyGroups)
             {
-                var propertyPath = group.Key;
+                var (className, fieldName) = group.Key;
                 var usages = group.ToList();
                 foreach (var usage in usages.OrderByDescending(u => u.Count))
                 {
                     propertyTable.AddRow(
-                        $"[green]{propertyPath}[/]",
+                        $"[green]{className}.{fieldName}[/]",
                         $"[blue]{usage.File}[/]",
                         $"[yellow]{usage.Count}[/]"
                     );
                 }
             }
+
             AnsiConsole.Write(propertyTable);
         }
     }
@@ -155,7 +152,7 @@ public class ConsoleUI
     public void DisplayError(Exception ex)
     {
         AnsiConsole.MarkupLine($"[red]An error occurred: {ex.Message}[/]");
-        AnsiConsole.MarkupLine($"[red]Stack trace: {ex.StackTrace}[/]");
+        // AnsiConsole.MarkupLine($"[red]Stack trace: {ex.StackTrace}[/]");
         _logger.LogError(ex, "An error occurred during analysis");
     }
-} 
+}

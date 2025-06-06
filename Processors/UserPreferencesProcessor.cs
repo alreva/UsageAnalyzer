@@ -10,7 +10,7 @@ public class UserPreferencesProcessor : BaseProcessor<UserEventDto>
         if (userEventDto?.User?.Preferences != null)
         {
             var prefs = userEventDto.User.Preferences;
-            output.WriteLine($"User Preferences:");
+            output.WriteLine("User Preferences:");
             output.WriteLine($"Theme: {prefs.Theme}");
             output.WriteLine($"Language: {prefs.Language}");
             output.WriteLine($"Notifications: {prefs.Notifications}");

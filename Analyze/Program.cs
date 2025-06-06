@@ -1,6 +1,6 @@
-﻿using Microsoft.Extensions.DependencyInjection;
+﻿using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Configuration;
 using Spectre.Console;
 
 namespace Analyze;
@@ -11,7 +11,7 @@ public class Program
     {
         var configuration = new ConfigurationBuilder()
             .SetBasePath(Directory.GetCurrentDirectory())
-            .AddJsonFile("appsettings.json", optional: false)
+            .AddJsonFile("appsettings.json", false)
             .Build();
 
         var services = new ServiceCollection();
@@ -20,11 +20,11 @@ public class Program
 
         var logger = serviceProvider.GetRequiredService<ILogger<Program>>();
         var analysisService = serviceProvider.GetRequiredService<AnalysisService>();
-        var consoleUI = new ConsoleUI(logger);
+        var consoleUi = new ConsoleUi(logger);
 
         try
         {
-            consoleUI.DisplayWelcome();
+            consoleUi.DisplayWelcome();
 
             // Get all DTO classes
             var dtoClasses = analysisService.GetDtoClasses().ToList();
@@ -35,28 +35,28 @@ public class Program
             }
 
             // Let user select a class
-            var selectedClass = consoleUI.PromptForClassSelection(dtoClasses);
+            var selectedClass = consoleUi.PromptForClassSelection(dtoClasses);
             if (selectedClass == null)
             {
                 return;
             }
 
             // Ask user for property usage output format
-            var propertyUsageFormat = consoleUI.PromptForPropertyUsageFormat();
+            var propertyUsageFormat = consoleUi.PromptForPropertyUsageFormat();
 
-            consoleUI.DisplayAnalysisStart(selectedClass);
+            consoleUi.DisplayAnalysisStart(selectedClass);
 
             // Analyze usage
             var (classUsage, propertyUsage) = await analysisService.AnalyzeUsageAsync(
                 selectedClass,
-                progress => {});
+                progress => { });
 
             // Display results
-            consoleUI.DisplayResults(classUsage, propertyUsage, selectedClass, propertyUsageFormat);
+            consoleUi.DisplayResults(classUsage, propertyUsage, selectedClass, propertyUsageFormat);
         }
         catch (Exception ex)
         {
-            consoleUI.DisplayError(ex);
+            consoleUi.DisplayError(ex);
         }
     }
 

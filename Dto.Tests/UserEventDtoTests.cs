@@ -67,12 +67,12 @@ public class UserEventDtoTests
                 },
                 ActivityLog = new List<ActivityLog>
                 {
-                    new ActivityLog
+                    new()
                     {
                         Action = "login",
                         Timestamp = DateTime.Parse("2023-09-30T10:00:00Z")
                     },
-                    new ActivityLog
+                    new()
                     {
                         Action = "viewProduct",
                         ProductId = "prod123",
@@ -83,7 +83,7 @@ public class UserEventDtoTests
         };
 
         // Act
-        string jsonString = JsonSerializer.Serialize(userEventDto);
+        var jsonString = JsonSerializer.Serialize(userEventDto);
         var deserializedUserEventDto = JsonSerializer.Deserialize<UserEventDto>(jsonString);
 
         // Assert
@@ -115,7 +115,8 @@ public class UserEventDtoTests
         Assert.Equal(userEventDto.User.Address.Country, deserializedUserEventDto.User.Address.Country);
         Assert.Equal(userEventDto.User.Preferences.Theme, deserializedUserEventDto.User.Preferences.Theme);
         Assert.Equal(userEventDto.User.Preferences.Language, deserializedUserEventDto.User.Preferences.Language);
-        Assert.Equal(userEventDto.User.Preferences.Notifications, deserializedUserEventDto.User.Preferences.Notifications);
+        Assert.Equal(userEventDto.User.Preferences.Notifications,
+            deserializedUserEventDto.User.Preferences.Notifications);
         Assert.Equal(userEventDto.User.Preferences.Newsletter, deserializedUserEventDto.User.Preferences.Newsletter);
         Assert.Equal(userEventDto.User.Preferences.Timezone, deserializedUserEventDto.User.Preferences.Timezone);
         Assert.Equal(userEventDto.User.LastLogin, deserializedUserEventDto.User.LastLogin);
@@ -138,9 +139,12 @@ public class UserEventDtoTests
         Assert.Equal(userEventDto.User.DeviceInfo.Browser, deserializedUserEventDto.User.DeviceInfo.Browser);
         Assert.Equal(userEventDto.User.DeviceInfo.IpAddress, deserializedUserEventDto.User.DeviceInfo.IpAddress);
         Assert.Equal(userEventDto.User.ActivityLog[0].Action, deserializedUserEventDto.User.ActivityLog[0].Action);
-        Assert.Equal(userEventDto.User.ActivityLog[0].Timestamp, deserializedUserEventDto.User.ActivityLog[0].Timestamp);
+        Assert.Equal(userEventDto.User.ActivityLog[0].Timestamp,
+            deserializedUserEventDto.User.ActivityLog[0].Timestamp);
         Assert.Equal(userEventDto.User.ActivityLog[1].Action, deserializedUserEventDto.User.ActivityLog[1].Action);
-        Assert.Equal(userEventDto.User.ActivityLog[1].ProductId, deserializedUserEventDto.User.ActivityLog[1].ProductId);
-        Assert.Equal(userEventDto.User.ActivityLog[1].Timestamp, deserializedUserEventDto.User.ActivityLog[1].Timestamp);
+        Assert.Equal(userEventDto.User.ActivityLog[1].ProductId,
+            deserializedUserEventDto.User.ActivityLog[1].ProductId);
+        Assert.Equal(userEventDto.User.ActivityLog[1].Timestamp,
+            deserializedUserEventDto.User.ActivityLog[1].Timestamp);
     }
 }

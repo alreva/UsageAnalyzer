@@ -9,6 +9,8 @@ public abstract class BaseProcessor<TDto> : IProcessor<TDto>
         PropertyNameCaseInsensitive = true
     };
 
+    public abstract void Process(string jsonInput, TextWriter output);
+
     protected TDto? Deserialize(string jsonInput)
     {
         try
@@ -25,6 +27,4 @@ public abstract class BaseProcessor<TDto> : IProcessor<TDto>
     {
         output.WriteLine($"No {dataType} found.");
     }
-
-    public abstract void Process(string jsonInput, TextWriter output);
 }

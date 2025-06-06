@@ -6,10 +6,19 @@ MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Dto", "Dto\Dto.csproj", "{E67BABBB-6AB9-4EDB-9EAD-57A49939FE89}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Processors", "Processors\Processors.csproj", "{679A324D-3FCE-4F9B-85E5-DBAE9F429AD6}"
+	ProjectSection(ProjectDependencies) = postProject
+		{E67BABBB-6AB9-4EDB-9EAD-57A49939FE89} = {E67BABBB-6AB9-4EDB-9EAD-57A49939FE89}
+	EndProjectSection
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Dto.Tests", "Dto.Tests\Dto.Tests.csproj", "{4DBBB78A-5FFF-4E82-AEC0-E3B64654FB53}"
+	ProjectSection(ProjectDependencies) = postProject
+		{E67BABBB-6AB9-4EDB-9EAD-57A49939FE89} = {E67BABBB-6AB9-4EDB-9EAD-57A49939FE89}
+	EndProjectSection
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Processors.Tests", "Processors.Tests\Processors.Tests.csproj", "{864F2924-304C-4744-BDE3-E2EB3310AC2F}"
+	ProjectSection(ProjectDependencies) = postProject
+		{E67BABBB-6AB9-4EDB-9EAD-57A49939FE89} = {E67BABBB-6AB9-4EDB-9EAD-57A49939FE89}
+	EndProjectSection
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Analyze", "Analyze\Analyze.csproj", "{05BF502A-CCF2-4B60-8E29-7DAED5866A14}"
 EndProject
