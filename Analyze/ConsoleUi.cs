@@ -101,17 +101,23 @@ public class ConsoleUi
                 .AddColumn(new TableColumn("[bold]Property[/]").LeftAligned())
                 .AddColumn(new TableColumn("[bold]Total Usages[/]").RightAligned());
 
-            var propertyGroups = propertyUsage
+            var propertyUsageData = propertyUsage
                 .Select(u => new { PropertyPath = u.Key.Attribute, Count = u.Value })
                 .GroupBy(x => x.PropertyPath)
-                .OrderBy(g => g.Key);
+                .OrderBy(x => x.Key.ClassName)
+                .ThenBy(x => x.Key.FieldName)
+                .Select(x => new
+                {
+                    PropertyPath = x.Key,
+                    Count = x.Sum(y => y.Count)
+                });
 
-            foreach (var group in propertyGroups)
+            foreach (var usage in propertyUsageData)
             {
-                var propertyPath = group.Key;
-                var totalUsages = group.Sum(x => x.Count);
+                var (className, fieldName) = usage.PropertyPath;
+                var totalUsages = usage.Count;
                 propertyTable.AddRow(
-                    $"[green]{propertyPath}[/]",
+                    $"[green]{className}.{fieldName}[/]",
                     $"[yellow]{totalUsages}[/]"
                 );
             }
@@ -126,23 +132,20 @@ public class ConsoleUi
                 .AddColumn(new TableColumn("[bold]File[/]").LeftAligned())
                 .AddColumn(new TableColumn("[bold]Usages[/]").RightAligned());
 
-            var propertyGroups = propertyUsage
-                .Select(u => { return new { File = u.Key.FilePath, PropertyPath = u.Key.Attribute, Count = u.Value }; })
-                .GroupBy(x => x.PropertyPath)
-                .OrderBy(g => g.Key);
+            var propertyUsageData = propertyUsage
+                .Select(u => new { File = u.Key.FilePath, PropertyPath = u.Key.Attribute, Count = u.Value })
+                .OrderBy(g => g.PropertyPath.ClassName)
+                .ThenBy(g => g.PropertyPath.FieldName)
+                .ThenBy(g => g.File);
 
-            foreach (var group in propertyGroups)
+            foreach (var usage in propertyUsageData)
             {
-                var (className, fieldName) = group.Key;
-                var usages = group.ToList();
-                foreach (var usage in usages.OrderByDescending(u => u.Count))
-                {
-                    propertyTable.AddRow(
-                        $"[green]{className}.{fieldName}[/]",
-                        $"[blue]{usage.File}[/]",
-                        $"[yellow]{usage.Count}[/]"
-                    );
-                }
+                var (className, fieldName) = usage.PropertyPath;
+                propertyTable.AddRow(
+                    $"[green]{className}.{fieldName}[/]",
+                    $"[blue]{usage.File}[/]",
+                    $"[yellow]{usage.Count}[/]"
+                );
             }
 
             AnsiConsole.Write(propertyTable);
