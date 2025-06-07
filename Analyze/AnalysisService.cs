@@ -139,11 +139,20 @@ public class AnalysisService
                 continue;
             }
 
+            var coreAssemblyPath = Path.GetDirectoryName(typeof(object).Assembly.Location)!;
             var dtoAssemblyPath = Path.Combine(_solutionDir, "Dto", "bin", "Debug", "net10.0", "Dto.dll");
-
             var compilation = (await project
                     .GetCompilationAsync())?
-                .AddReferences(MetadataReference.CreateFromFile(dtoAssemblyPath));
+                .AddReferences([
+                    MetadataReference.CreateFromFile(typeof(object).Assembly.Location), // System.Private.CoreLib
+                    MetadataReference.CreateFromFile(Path.Combine(coreAssemblyPath, "System.Runtime.dll")),
+                    MetadataReference.CreateFromFile(Path.Combine(coreAssemblyPath, "System.Collections.dll")),
+                    MetadataReference.CreateFromFile(Path.Combine(coreAssemblyPath, "System.Console.dll")),
+                    MetadataReference.CreateFromFile(typeof(List<>).Assembly.Location), // System.Collections.Generic
+                    MetadataReference.CreateFromFile(typeof(Enumerable).Assembly.Location), // System.Linq
+                    MetadataReference.CreateFromFile(typeof(Console).Assembly.Location), // System.Console
+                    MetadataReference.CreateFromFile(dtoAssemblyPath)
+                ]);
             if (compilation == null)
             {
                 continue;
@@ -187,7 +196,7 @@ public class AnalysisService
                     var attribute = GetClassAndFieldName(semanticModel, usageCandidate);
                     var deepProperty = deepProperties
                         .SingleOrDefault(p => 
-                            attribute.ClassName == p.Property.DeclaringType!.Name
+                            attribute.ClassName == p.Type.Name
                             &&  attribute.FieldName == p.Property.Name);
 
                     if (deepProperty == default)
@@ -256,14 +265,23 @@ public class AnalysisService
         return false;
     }
 
-    private static List<(PropertyInfo Property, string FullPath)> GetDeepProperties(Type type, string prefix = "")
+    private static List<(PropertyInfo Property, Type Type, string FullPath)> GetDeepProperties(Type type, string prefix = "")
     {
-        var properties = new List<(PropertyInfo Property, string FullPath)>();
+        var properties = new List<(PropertyInfo Property, Type Type, string FullPath)>();
 
         foreach (var prop in type.GetProperties())
         {
             var fullPath = string.IsNullOrEmpty(prefix) ? prop.Name : $"{prefix}.{prop.Name}";
-            properties.Add((prop, fullPath));
+            
+            var declaringType = prop.DeclaringType!;
+            // check if declaringType is an enumerable type
+            if (declaringType.IsGenericType &&
+                declaringType.GetGenericTypeDefinition() == typeof(IEnumerable<>))
+            {
+                declaringType = declaringType.GetGenericArguments()[0];
+            }
+            
+            properties.Add((prop, declaringType, fullPath));
 
             if (!IsPrimitiveOrArrayOfPrimitives(prop.PropertyType))
             {
