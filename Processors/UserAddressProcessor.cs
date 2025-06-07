@@ -15,6 +15,7 @@ public class UserAddressProcessor : BaseProcessor<UserEventDto>
             output.WriteLine($"City: {address.City}");
             output.WriteLine($"State: {address.State}");
             output.WriteLine($"Zip Code: {address.ZipCode}");
+            output.WriteLine($"Zip Code: {address.ZipCode}");
             output.WriteLine($"Country: {address.Country}");
         }
         else

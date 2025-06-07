@@ -63,35 +63,10 @@ public class ConsoleUi
     }
 
     public void DisplayResults(
-        Dictionary<string, int> classUsage,
         Dictionary<UsageKey, int> propertyUsage,
         Type selectedClass,
         PropertyUsageFormat propertyUsageFormat)
     {
-        // Class Usage Table
-        var classTable = new Table()
-            .Border(TableBorder.Rounded)
-            .AddColumn(new TableColumn("[bold]File[/]").LeftAligned())
-            .AddColumn(new TableColumn("[bold]Usages[/]").RightAligned());
-
-        AnsiConsole.MarkupLine("\n[bold blue]Class Usage Analysis[/]");
-        if (classUsage.Any())
-        {
-            foreach (var usage in classUsage.OrderByDescending(u => u.Value))
-            {
-                classTable.AddRow(
-                    $"[green]{usage.Key}[/]",
-                    $"[yellow]{usage.Value}[/]"
-                );
-            }
-        }
-        else
-        {
-            classTable.AddRow("[red]No direct class usage found[/]", "0");
-        }
-
-        AnsiConsole.Write(classTable);
-
         // Property Usage Table
         AnsiConsole.MarkupLine("\n[bold blue]Property Usage Analysis[/]");
         if (propertyUsageFormat == PropertyUsageFormat.TotalUsages)
@@ -144,9 +119,10 @@ public class ConsoleUi
                 propertyTable.AddRow(
                     $"[green]{className}.{fieldName}[/]",
                     $"[blue]{usage.File}[/]",
-                    $"[yellow]{usage.Count}[/]"
+                    $"[{(usage.Count == 0 ? "yellow" : "green")}]{usage.Count}[/]"
                 );
             }
+            
 
             AnsiConsole.Write(propertyTable);
         }

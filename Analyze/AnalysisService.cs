@@ -11,7 +11,6 @@ namespace Analyze;
 
 public class AnalysisService
 {
-    private readonly HashSet<Type> _analyzedTypes = new();
     private readonly ILogger<AnalysisService> _logger;
     private readonly string _solutionDir;
     private readonly string _solutionPath;
@@ -91,17 +90,23 @@ public class AnalysisService
             .ToList();
     }
 
-    public async Task<(Dictionary<string, int>, Dictionary<UsageKey, int>)> AnalyzeUsageAsync(
-        Type selectedClass,
-        Action<string> progressCallback)
+    public async Task<Dictionary<UsageKey, int>> AnalyzeUsageAsync(Type selectedClass)
     {
         _logger.LogDebug("Starting analysis for class: {SelectedClassFullName}", selectedClass.FullName);
-        var classUsage = new Dictionary<string, int>();
         var propertyUsage = new Dictionary<UsageKey, int>();
-        _analyzedTypes.Clear();
+
+        // Find property references
+        var deepProperties = GetDeepProperties(selectedClass);
+        _logger.LogDebug(
+            "Found {Count} deep properties in {CurrentTypeFullName}",
+            deepProperties.Count,
+            selectedClass.FullName);
 
         using var workspace = new AdhocWorkspace(MefHostServices.Create(MefHostServices.DefaultAssemblies));
-        workspace.WorkspaceFailed += (sender, args) => { Console.WriteLine($"Warning: {args.Diagnostic}"); };
+        workspace.WorkspaceFailed += (sender, args) =>
+        {
+            _logger.LogWarning("Workspace failed: {Diagnostic}", args.Diagnostic);
+        };
         var projectPaths = GetProjectPathsFromSolution(_solutionPath);
         foreach (var projectPath in projectPaths)
         {
@@ -112,113 +117,121 @@ public class AnalysisService
 
         _logger.LogDebug("Loaded solution with {ProjectCount} projects.", solution.Projects.Count());
 
-        // Queue of types to analyze
-        var typesToAnalyze = new Queue<Type>();
-        typesToAnalyze.Enqueue(selectedClass);
-        _logger.LogDebug("Initial queue size: {Count}", typesToAnalyze.Count);
-
-        while (typesToAnalyze.Count > 0)
+        var shouldSkipTetsProjects = AnsiConsole.Prompt(
+            new SelectionPrompt<string>()
+                .Title("Skip test project analysis?")
+                .AddChoices("Yes", "No")) == "Yes";
+        
+        foreach (var project in solution.Projects)
         {
-            var currentType = typesToAnalyze.Dequeue();
-
-            // Skip if already analyzed
-            if (_analyzedTypes.Contains(currentType))
+            // Skip Test project
+            if (shouldSkipTetsProjects && project.Name.EndsWith("Tests"))
             {
-                _logger.LogDebug("Skipping already analyzed type: {CurrentTypeFullName}", currentType.FullName);
+                _logger.LogInformation("Skipping test project {ProjectName}.", project.Name);
+                continue;
+            }
+                
+            // Skip Analyze project
+            if (project.Name == "Analyze" ||
+                project.Name == "Dto")
+            {
+                _logger.LogInformation("Skipping {ProjectName} project.", project.Name);
                 continue;
             }
 
-            _analyzedTypes.Add(currentType);
-            _logger.LogInformation("Analyzing type: {CurrentTypeFullName}", currentType.FullName);
+            var dtoAssemblyPath = Path.Combine(_solutionDir, "Dto", "bin", "Debug", "net10.0", "Dto.dll");
 
-            foreach (var project in solution.Projects)
+            var compilation = (await project
+                    .GetCompilationAsync())?
+                .AddReferences(MetadataReference.CreateFromFile(dtoAssemblyPath));
+            if (compilation == null)
             {
-                // Skip Analyze project
-                if (project.Name == "Analyze" ||
-                    project.Name == "Dto")
-                {
-                    _logger.LogInformation("Skipping {ProjectName} project.", project.Name);
-                    continue;
-                }
-
-                var dtoAssemblyPath = Path.Combine(_solutionDir, "Dto", "bin", "Debug", "net10.0", "Dto.dll");
-
-                var compilation = (await project
-                        .GetCompilationAsync())?
-                    .AddReferences(MetadataReference.CreateFromFile(dtoAssemblyPath));
-                if (compilation == null)
-                {
-                    continue;
-                }
-
-                foreach (var document in project.Documents)
-                {
-                    var filePath = document.FilePath!;
-                    if (filePath.Contains("/obj/", StringComparison.OrdinalIgnoreCase)
-                        || filePath.Contains("/bin/"))
-                    {
-                        continue;
-                    }
-
-                    var syntaxTree = await document.GetSyntaxTreeAsync();
-                    if (syntaxTree == null)
-                    {
-                        continue;
-                    }
-
-                    var semanticModel = compilation.GetSemanticModel(syntaxTree);
-                    var root = await syntaxTree.GetRootAsync();
-
-                    _logger.LogDebug("Analyzing file: {FilePath}", filePath);
-
-                    // Find property references
-                    var deepProperties = GetDeepProperties(currentType);
-                    _logger.LogDebug(
-                        "Found {Count} deep properties in {CurrentTypeFullName}",
-                        deepProperties.Count,
-                        currentType.FullName);
-
-                    var usages = root
-                        .DescendantNodes()
-                        .OfType<MemberAccessExpressionSyntax>()
-                        .Where(m =>
-                            deepProperties
-                                .Select(p => p.Property)
-                                .Select(p => p.Name)
-                                .Contains(m.Name.Identifier.Text))
-                        .ToArray();
-
-                    _logger.LogDebug("Found {Count} usages of properties in {File}", usages.Length, filePath);
-
-                    foreach (var usage in usages)
-                    {
-                        var attribute = GetClassAndFieldName(semanticModel, usage);
-                        if (string.IsNullOrWhiteSpace(attribute.ClassName))
-                        {
-                            attribute = attribute with { ClassName = selectedClass.Name };
-                        }
-
-                        UsageKey key = new(filePath, attribute);
-                        if (!propertyUsage.TryAdd(key, 1))
-                        {
-                            propertyUsage[key]++;
-                        }
-                    }
-                }
+                continue;
             }
 
-            // Add nested types to the queue for analysis
-            var nestedTypes = GetNestedTypes(currentType).ToList();
-            foreach (var nestedType in nestedTypes)
+            foreach (var document in project.Documents)
             {
-                if (nestedType.Assembly == selectedClass.Assembly)
+                var filePath = document.FilePath!;
+                if (filePath.Contains("/obj/", StringComparison.OrdinalIgnoreCase)
+                    || filePath.Contains("/bin/"))
                 {
-                    typesToAnalyze.Enqueue(nestedType);
+                    continue;
+                }
+
+                var syntaxTree = await document.GetSyntaxTreeAsync();
+                if (syntaxTree == null)
+                {
+                    continue;
+                }
+
+                var semanticModel = compilation.GetSemanticModel(syntaxTree);
+                var root = await syntaxTree.GetRootAsync();
+
+                _logger.LogDebug("Analyzing file: {FilePath}", filePath);
+                
+                var memberAccessExpressionSyntaxes = root
+                    .DescendantNodes()
+                    .OfType<MemberAccessExpressionSyntax>();
+                
+                var deepPropertyNames = deepProperties
+                    .Select(p => p.Property.Name)
+                    .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+                foreach (var usageCandidate in memberAccessExpressionSyntaxes)
+                {
+                    if (!deepPropertyNames.Contains(usageCandidate.Name.Identifier.Text))
+                    {
+                        continue;
+                    }
+                    
+                    var attribute = GetClassAndFieldName(semanticModel, usageCandidate);
+                    var deepProperty = deepProperties
+                        .SingleOrDefault(p => 
+                            attribute.ClassName == p.Property.DeclaringType!.Name
+                            &&  attribute.FieldName == p.Property.Name);
+
+                    if (deepProperty == default)
+                    {
+                        _logger.LogDebug(
+                            "Property usage for {PropertyName}" +
+                            " in file {FilePath} is of type {ActualClassName}" +
+                            " and does not match expected class {ExpectedClassName}.",
+                            attribute.FieldName,
+                            filePath,
+                            attribute.ClassName,
+                            selectedClass.Name);
+                        continue;
+                    }
+                    
+                    if (string.IsNullOrWhiteSpace(attribute.ClassName))
+                    {
+                        attribute = attribute with { ClassName = selectedClass.Name };
+                    }
+
+                    UsageKey key = new(filePath, attribute);
+                    if (!propertyUsage.TryAdd(key, 1))
+                    {
+                        propertyUsage[key]++;
+                    }
                 }
             }
         }
 
-        return (classUsage, propertyUsage);
+        // add unused properties from deepProperties:
+        foreach (var deepProperty in deepProperties)
+        {
+            var attribute = new ClassAndField(deepProperty.Property.DeclaringType!.Name, deepProperty.Property.Name);
+            
+            if (propertyUsage.Any(k => k.Key.Attribute == attribute))
+            {
+                continue; // already exists
+            }
+            
+            UsageKey key = new("N/A", attribute);
+            propertyUsage.TryAdd(key, 0);
+        }
+        
+        return propertyUsage;
     }
 
     private static bool IsPrimitiveOrArrayOfPrimitives(Type type)
@@ -261,52 +274,16 @@ public class AnalysisService
         return properties;
     }
 
-    private HashSet<Type> GetNestedTypes(Type type)
-    {
-        var types = new HashSet<Type>();
-
-        foreach (var prop in type.GetProperties())
-        {
-            var propType = prop.PropertyType;
-
-            if (propType.IsArray)
-            {
-                propType = propType.GetElementType();
-            }
-            else if (propType.IsGenericType && propType.GetGenericTypeDefinition() == typeof(List<>))
-            {
-                propType = propType.GetGenericArguments()[0];
-            }
-
-            if (propType == null)
-            {
-                continue;
-            }
-
-            if (propType.IsClass &&
-                propType != typeof(string) &&
-                !propType.IsPrimitive &&
-                !propType.IsEnum &&
-                (propType.Namespace == null || !propType.Namespace.StartsWith("System")) &&
-                !_analyzedTypes.Contains(propType))
-            {
-                types.Add(propType);
-            }
-        }
-
-        return types;
-    }
-
-    private static void LoadProjectIntoWorkspace(AdhocWorkspace workspace, string projectPath)
+    private void LoadProjectIntoWorkspace(AdhocWorkspace workspace, string projectPath)
     {
         if (!File.Exists(projectPath))
         {
-            Console.WriteLine($"Warning: Project file not found: {projectPath}");
+            _logger.LogWarning("Project file not found: {ProjectPath}", projectPath);
             return;
         }
 
         var projectName = Path.GetFileNameWithoutExtension(projectPath);
-        Console.WriteLine($"Loading project: {projectName}");
+        _logger.LogInformation("Loading project: {ProjectName} from {ProjectPath}", projectName, projectPath);
 
         var projectInfo = ProjectInfo.Create(
             ProjectId.CreateNewId(),

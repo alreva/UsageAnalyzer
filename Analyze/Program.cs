@@ -47,12 +47,11 @@ public class Program
             consoleUi.DisplayAnalysisStart(selectedClass);
 
             // Analyze usage
-            var (classUsage, propertyUsage) = await analysisService.AnalyzeUsageAsync(
-                selectedClass,
-                progress => { });
+            var propertyUsage = await analysisService.AnalyzeUsageAsync(
+                selectedClass);
 
             // Display results
-            consoleUi.DisplayResults(classUsage, propertyUsage, selectedClass, propertyUsageFormat);
+            consoleUi.DisplayResults(propertyUsage, selectedClass, propertyUsageFormat);
         }
         catch (Exception ex)
         {
