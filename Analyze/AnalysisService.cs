@@ -92,6 +92,11 @@ public class AnalysisService
 
     public async Task<Dictionary<UsageKey, int>> AnalyzeUsageAsync(Type selectedClass)
     {
+        var shouldSkipTestProjects = AnsiConsole.Prompt(
+            new SelectionPrompt<string>()
+                .Title("Skip test project analysis?")
+                .AddChoices("Yes", "No")) == "Yes";
+
         _logger.LogDebug("Starting analysis for class: {SelectedClassFullName}", selectedClass.FullName);
         var propertyUsage = new Dictionary<UsageKey, int>();
 
@@ -116,16 +121,11 @@ public class AnalysisService
         var solution = workspace.CurrentSolution;
 
         _logger.LogDebug("Loaded solution with {ProjectCount} projects.", solution.Projects.Count());
-
-        var shouldSkipTetsProjects = AnsiConsole.Prompt(
-            new SelectionPrompt<string>()
-                .Title("Skip test project analysis?")
-                .AddChoices("Yes", "No")) == "Yes";
         
         foreach (var project in solution.Projects)
         {
             // Skip Test project
-            if (shouldSkipTetsProjects && project.Name.EndsWith("Tests"))
+            if (shouldSkipTestProjects && project.Name.EndsWith("Tests"))
             {
                 _logger.LogInformation("Skipping test project {ProjectName}.", project.Name);
                 continue;
@@ -229,7 +229,7 @@ public class AnalysisService
         // add unused properties from deepProperties:
         foreach (var deepProperty in deepProperties)
         {
-            var attribute = new ClassAndField(deepProperty.Property.DeclaringType!.Name, deepProperty.Property.Name);
+            var attribute = new ClassAndField(deepProperty.Type.Name, deepProperty.Property.Name);
             
             if (propertyUsage.Any(k => k.Key.Attribute == attribute))
             {
@@ -241,6 +241,34 @@ public class AnalysisService
         }
         
         return propertyUsage;
+    }
+
+    private static List<(PropertyInfo Property, Type Type, string FullPath)> GetDeepProperties(Type type, string prefix = "")
+    {
+        var properties = new List<(PropertyInfo Property, Type Type, string FullPath)>();
+
+        foreach (var prop in type.GetProperties())
+        {
+            var fullPath = string.IsNullOrEmpty(prefix) ? prop.Name : $"{prefix}.{prop.Name}";
+            
+            var declaringType = prop.DeclaringType!;
+            // check if declaringType is an enumerable type
+            if (IsGenericList(declaringType))
+            {
+                var itemProp = declaringType.GetProperty("Item")!;
+                properties.AddRange(GetDeepProperties(itemProp.PropertyType, fullPath + ".Item"));
+                return properties;
+            }
+            
+            properties.Add((prop, declaringType, fullPath));
+
+            if (!IsPrimitiveOrArrayOfPrimitives(prop.PropertyType))
+            {
+                properties.AddRange(GetDeepProperties(prop.PropertyType, fullPath));
+            }
+        }
+
+        return properties;
     }
 
     private static bool IsPrimitiveOrArrayOfPrimitives(Type type)
@@ -256,7 +284,7 @@ public class AnalysisService
             return elementType != null && (elementType.IsPrimitive || elementType == typeof(string));
         }
 
-        if (type.IsGenericType && type.GetGenericTypeDefinition() == typeof(IEnumerable<>))
+        if (IsGenericEnumerable(type))
         {
             var elementType = type.GetGenericArguments()[0];
             return elementType.IsPrimitive || elementType == typeof(string);
@@ -265,31 +293,14 @@ public class AnalysisService
         return false;
     }
 
-    private static List<(PropertyInfo Property, Type Type, string FullPath)> GetDeepProperties(Type type, string prefix = "")
+    private static bool IsGenericList(Type type)
     {
-        var properties = new List<(PropertyInfo Property, Type Type, string FullPath)>();
+        return type.GetInterfaces().Any(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IList<>));
+    }
 
-        foreach (var prop in type.GetProperties())
-        {
-            var fullPath = string.IsNullOrEmpty(prefix) ? prop.Name : $"{prefix}.{prop.Name}";
-            
-            var declaringType = prop.DeclaringType!;
-            // check if declaringType is an enumerable type
-            if (declaringType.IsGenericType &&
-                declaringType.GetGenericTypeDefinition() == typeof(IEnumerable<>))
-            {
-                declaringType = declaringType.GetGenericArguments()[0];
-            }
-            
-            properties.Add((prop, declaringType, fullPath));
-
-            if (!IsPrimitiveOrArrayOfPrimitives(prop.PropertyType))
-            {
-                properties.AddRange(GetDeepProperties(prop.PropertyType, fullPath));
-            }
-        }
-
-        return properties;
+    private static bool IsGenericEnumerable(Type type)
+    {
+        return type.GetInterfaces().Any(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IEnumerable<>));
     }
 
     private void LoadProjectIntoWorkspace(AdhocWorkspace workspace, string projectPath)
