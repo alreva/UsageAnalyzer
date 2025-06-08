@@ -16,7 +16,7 @@ The solution consists of the following projects:
 
 ### Prerequisites
 
-- .NET 8.0 SDK or later
+- .NET 10.0 SDK or later
 - Your favorite IDE (Visual Studio, VS Code, etc.)
 
 ### Building the Solution
@@ -25,7 +25,23 @@ The solution consists of the following projects:
 dotnet build
 ```
 
+### Running the Application
+
+To run the Analyze application:
+
+```bash
+cd Analyze
+dotnet run
+```
+
+The application provides a console interface for analyzing user data. Follow the on-screen prompts to:
+1. Select the type of data to analyze
+2. Input or load JSON data
+3. View the processed results
+
 ### Running Tests
+
+The solution includes comprehensive unit tests for both DTOs and Processors. Run the tests using:
 
 ```bash
 dotnet test
@@ -59,14 +75,6 @@ Each processor follows the same pattern:
 1. Takes JSON input containing user event data
 2. Deserializes the data into appropriate DTOs
 3. Processes the data and writes formatted output to a TextWriter
-
-## Testing
-
-The solution includes comprehensive unit tests for both DTOs and Processors. Run the tests using:
-
-```bash
-dotnet test
-```
 
 ## License
 
