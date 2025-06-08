@@ -93,7 +93,7 @@ public class ConsoleUi
                 var totalUsages = usage.Count;
                 propertyTable.AddRow(
                     $"[green]{className}.{fieldName}[/]",
-                    $"[yellow]{totalUsages}[/]"
+                    FormatUsageCount(totalUsages)
                 );
             }
 
@@ -119,13 +119,18 @@ public class ConsoleUi
                 propertyTable.AddRow(
                     $"[green]{className}.{fieldName}[/]",
                     $"[blue]{usage.File}[/]",
-                    $"[{(usage.Count == 0 ? "yellow" : "green")}]{usage.Count}[/]"
+                    FormatUsageCount(usage.Count)
                 );
             }
             
 
             AnsiConsole.Write(propertyTable);
         }
+    }
+
+    private static string FormatUsageCount(int usageCount)
+    {
+        return $"[{(usageCount == 0 ? "yellow" : "green")}]{usageCount}[/]";
     }
 
     public void DisplayError(Exception ex)
