@@ -16,6 +16,10 @@ public class UserProcessor : BaseProcessor<UserEventDto>
             output.WriteLine($"Email: {user.Email}");
             output.WriteLine($"Name: {user.FirstName} {user.LastName}");
             output.WriteLine($"Date of Birth: {user.DateOfBirth:yyyy-MM-dd}");
+            // if (user.CreatedAt.HasValue)
+            // {
+            //     output.WriteLine($"Created At: {user.CreatedAt.Value:yyyy-MM-dd HH:mm:ss}");
+            // }
             output.WriteLine($"Gender: {user.Gender}");
             output.WriteLine($"Phone Number: {user.PhoneNumber}");
             output.WriteLine($"Last Login: {user.LastLogin:yyyy-MM-dd HH:mm:ss}");

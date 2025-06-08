@@ -249,23 +249,37 @@ public class AnalysisService
 
         foreach (var prop in type.GetProperties())
         {
+            var propType = prop.PropertyType;
             var fullPath = string.IsNullOrEmpty(prefix) ? prop.Name : $"{prefix}.{prop.Name}";
             
-            var declaringType = prop.DeclaringType!;
-            // check if declaringType is an enumerable type
-            if (IsGenericList(declaringType))
+            if (IsPrimitiveOrArrayOfPrimitives(propType))
             {
-                var itemProp = declaringType.GetProperty("Item")!;
-                properties.AddRange(GetDeepProperties(itemProp.PropertyType, fullPath + ".Item"));
-                return properties;
+                properties.Add((prop, type, fullPath));
+                continue;
             }
-            
-            properties.Add((prop, declaringType, fullPath));
 
-            if (!IsPrimitiveOrArrayOfPrimitives(prop.PropertyType))
+            if (IsNullable(propType))
             {
-                properties.AddRange(GetDeepProperties(prop.PropertyType, fullPath));
+                var itemProp = propType.GetProperty("Value")!;
+                if (IsPrimitiveOrArrayOfPrimitives(itemProp.PropertyType))
+                {
+                    properties.Add((prop, type, fullPath));
+                }
+                else
+                {
+                    properties.AddRange(GetDeepProperties(itemProp.PropertyType, fullPath + ".Value"));
+                }
+                continue;
             }
+
+            if (IsGenericList(propType))
+            {
+                var itemProp = propType.GetProperty("Item")!;
+                properties.AddRange(GetDeepProperties(itemProp.PropertyType, fullPath + ".Item"));
+                continue;
+            }
+
+            properties.AddRange(GetDeepProperties(propType, fullPath));
         }
 
         return properties;
@@ -302,6 +316,12 @@ public class AnalysisService
     {
         return type.GetInterfaces().Any(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IEnumerable<>));
     }
+    
+    private static bool IsNullable(Type type)
+    {
+        return Nullable.GetUnderlyingType(type) != null;
+    }
+
 
     private void LoadProjectIntoWorkspace(AdhocWorkspace workspace, string projectPath)
     {
