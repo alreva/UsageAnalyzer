@@ -482,3 +482,28 @@ $RECYCLE.BIN/
 
 # Vim temporary swap files
 *.swp
+
+# IDE settings
+.vscode/
+
+# Documentation and code files
+*.docx
+code.txt
+code_plain.txt
+
+# Visual Studio files
+.vs/
+*.user
+*.userosscache
+*.suo
+*.userprefs
+*.dbmdl
+*.dbproj.schemaview
+*.jfm
+*.pfx
+*.publishsettings
+orleans.codegen.cs
+
+# Rider
+.idea/
+*.sln.iml
