@@ -16,7 +16,7 @@ The solution consists of the following projects:
 
 ### Prerequisites
 
-- .NET 10.0 SDK or later
+- .NET 8.0 SDK or later
 - Your favorite IDE (Visual Studio, VS Code, etc.)
 
 ### Building the Solution
