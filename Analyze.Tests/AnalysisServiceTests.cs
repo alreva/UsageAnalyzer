@@ -100,4 +100,24 @@ public class AnalysisServiceTests
             Directory.Delete(temp, true);
         }
     }
+
+    [Fact]
+    public async Task AnalyzeUsageAsync_ReturnsUsageCounts()
+    {
+        var service = CreateService();
+        var result = await service.AnalyzeUsageAsync(
+            GetSolutionPath(),
+            typeof(UserEventDto),
+            true);
+
+        var aggregated = result
+            .GroupBy(r => r.Key.Attribute)
+            .ToDictionary(g => g.Key, g => g.Sum(x => x.Value));
+
+        Assert.Equal(2, aggregated[new ClassAndField("Address", "ZipCode")]);
+        Assert.Equal(2, aggregated[new ClassAndField("User", "FavoriteCategories")]);
+        Assert.Equal(2, aggregated[new ClassAndField("ActivityLog", "ProductId")]);
+        Assert.Equal(0, aggregated[new ClassAndField("User", "CreatedAt")]);
+        Assert.Equal(1, aggregated[new ClassAndField("UserEventDto", "EventId")]);
+    }
 }
