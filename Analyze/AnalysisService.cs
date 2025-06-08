@@ -28,8 +28,22 @@ public class AnalysisService(ILogger<AnalysisService> logger)
     private static string GetDtoAssemblyPath(string solutionPath)
     {
         var solutionDir = Path.GetDirectoryName(solutionPath)!;
-        var dtoAssemblyPath = Path.Combine(solutionDir, "Dto", "bin", "Debug", "net10.0", "Dto.dll");
+        var targetFramework = GetTargetFramework(solutionDir);
+        var dtoAssemblyPath = Path.Combine(solutionDir, "Dto", "bin", "Debug", targetFramework, "Dto.dll");
         return dtoAssemblyPath;
+    }
+
+    private static string GetTargetFramework(string solutionDir)
+    {
+        var propsPath = Path.Combine(solutionDir, "Directory.Build.props");
+        if (!File.Exists(propsPath))
+        {
+            return "net8.0";
+        }
+
+        var doc = System.Xml.Linq.XDocument.Load(propsPath);
+        var tfElement = doc.Descendants("TargetFramework").FirstOrDefault();
+        return tfElement?.Value ?? "net8.0";
     }
 
     public async Task<Dictionary<UsageKey, int>> AnalyzeUsageAsync(string solutionPath, Type selectedClass, bool shouldSkipTestProjects)

@@ -1,9 +1,7 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
-
+<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <IsPackable>false</IsPackable>
   </PropertyGroup>
-
   <ItemGroup>
     <PackageReference Include="coverlet.collector">
       <PrivateAssets>all</PrivateAssets>
@@ -16,15 +14,13 @@
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
   </ItemGroup>
-
   <ItemGroup>
     <Using Include="Xunit"/>
   </ItemGroup>
-
   <ItemGroup>
+    <ProjectReference Include="..\Analyze\Analyze.csproj"/>
     <Reference Include="Dto">
       <HintPath>..\Dto\bin\Debug\$(TargetFramework)\Dto.dll</HintPath>
     </Reference>
   </ItemGroup>
-
 </Project>
