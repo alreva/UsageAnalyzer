@@ -22,6 +22,12 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Processors.Tests", "Process
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Analyze", "Analyze\Analyze.csproj", "{05BF502A-CCF2-4B60-8E29-7DAED5866A14}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Analyze.Tests", "Analyze.Tests\Analyze.Tests.csproj", "{FAA7AD07-59CB-43F5-9457-B7CAAAF2D180}"
+        ProjectSection(ProjectDependencies) = postProject
+                {05BF502A-CCF2-4B60-8E29-7DAED5866A14} = {05BF502A-CCF2-4B60-8E29-7DAED5866A14}
+                {E67BABBB-6AB9-4EDB-9EAD-57A49939FE89} = {E67BABBB-6AB9-4EDB-9EAD-57A49939FE89}
+        EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -91,8 +97,20 @@ Global
 		{05BF502A-CCF2-4B60-8E29-7DAED5866A14}.Release|x64.ActiveCfg = Release|Any CPU
 		{05BF502A-CCF2-4B60-8E29-7DAED5866A14}.Release|x64.Build.0 = Release|Any CPU
 		{05BF502A-CCF2-4B60-8E29-7DAED5866A14}.Release|x86.ActiveCfg = Release|Any CPU
-		{05BF502A-CCF2-4B60-8E29-7DAED5866A14}.Release|x86.Build.0 = Release|Any CPU
-	EndGlobalSection
+                {05BF502A-CCF2-4B60-8E29-7DAED5866A14}.Release|x86.Build.0 = Release|Any CPU
+                {FAA7AD07-59CB-43F5-9457-B7CAAAF2D180}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+                {FAA7AD07-59CB-43F5-9457-B7CAAAF2D180}.Debug|Any CPU.Build.0 = Debug|Any CPU
+                {FAA7AD07-59CB-43F5-9457-B7CAAAF2D180}.Debug|x64.ActiveCfg = Debug|Any CPU
+                {FAA7AD07-59CB-43F5-9457-B7CAAAF2D180}.Debug|x64.Build.0 = Debug|Any CPU
+                {FAA7AD07-59CB-43F5-9457-B7CAAAF2D180}.Debug|x86.ActiveCfg = Debug|Any CPU
+                {FAA7AD07-59CB-43F5-9457-B7CAAAF2D180}.Debug|x86.Build.0 = Debug|Any CPU
+                {FAA7AD07-59CB-43F5-9457-B7CAAAF2D180}.Release|Any CPU.ActiveCfg = Release|Any CPU
+                {FAA7AD07-59CB-43F5-9457-B7CAAAF2D180}.Release|Any CPU.Build.0 = Release|Any CPU
+                {FAA7AD07-59CB-43F5-9457-B7CAAAF2D180}.Release|x64.ActiveCfg = Release|Any CPU
+                {FAA7AD07-59CB-43F5-9457-B7CAAAF2D180}.Release|x64.Build.0 = Release|Any CPU
+                {FAA7AD07-59CB-43F5-9457-B7CAAAF2D180}.Release|x86.ActiveCfg = Release|Any CPU
+                {FAA7AD07-59CB-43F5-9457-B7CAAAF2D180}.Release|x86.Build.0 = Release|Any CPU
+        EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
 	EndGlobalSection
