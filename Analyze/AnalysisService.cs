@@ -34,7 +34,7 @@ public class AnalysisService(ILogger<AnalysisService> logger)
         return dtoAssemblyPath;
     }
 
-    private static string GetTargetFramework(string solutionDir)
+    public static string GetTargetFramework(string solutionDir)
     {
         var propsPath = Path.Combine(solutionDir, "Directory.Build.props");
         if (!File.Exists(propsPath))
@@ -274,7 +274,7 @@ public class AnalysisService(ILogger<AnalysisService> logger)
         return properties;
     }
 
-    private static bool IsPrimitiveOrArrayOfPrimitives(Type type)
+    public static bool IsPrimitiveOrArrayOfPrimitives(Type type)
     {
         if (type.IsPrimitive || type == typeof(string) || type == typeof(decimal) || type == typeof(DateTime))
         {
@@ -306,7 +306,7 @@ public class AnalysisService(ILogger<AnalysisService> logger)
         return type.GetInterfaces().Any(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IEnumerable<>));
     }
     
-    private static bool IsNullable(Type type)
+    public static bool IsNullable(Type type)
     {
         return Nullable.GetUnderlyingType(type) != null;
     }

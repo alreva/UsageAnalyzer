@@ -1,7 +1,6 @@
 using Analyze;
 using Dto;
 using Microsoft.Extensions.Logging;
-using System.Reflection;
 
 namespace Analyze.Tests;
 
@@ -31,22 +30,20 @@ public class AnalysisServiceTests
     [Fact]
     public void IsNullable_DetectsNullableTypes()
     {
-        var method = typeof(AnalysisService).GetMethod("IsNullable", BindingFlags.NonPublic | BindingFlags.Static)!;
-        Assert.True((bool)method.Invoke(null, new object[] { typeof(int?) })!);
-        Assert.False((bool)method.Invoke(null, new object[] { typeof(int) })!);
+        Assert.True(AnalysisService.IsNullable(typeof(int?)));
+        Assert.False(AnalysisService.IsNullable(typeof(int)));
     }
 
     [Fact]
     public void IsPrimitiveOrArrayOfPrimitives_ReturnsExpected()
     {
-        var method = typeof(AnalysisService).GetMethod("IsPrimitiveOrArrayOfPrimitives", BindingFlags.NonPublic | BindingFlags.Static)!;
-        Assert.True((bool)method.Invoke(null, new object[] { typeof(int) })!);
-        Assert.True((bool)method.Invoke(null, new object[] { typeof(string) })!);
-        Assert.True((bool)method.Invoke(null, new object[] { typeof(decimal) })!);
-        Assert.True((bool)method.Invoke(null, new object[] { typeof(DateTime) })!);
-        Assert.True((bool)method.Invoke(null, new object[] { typeof(string[]) })!);
-        Assert.True((bool)method.Invoke(null, new object[] { typeof(List<int>) })!);
-        Assert.False((bool)method.Invoke(null, new object[] { typeof(DeviceInfo) })!);
+        Assert.True(AnalysisService.IsPrimitiveOrArrayOfPrimitives(typeof(int)));
+        Assert.True(AnalysisService.IsPrimitiveOrArrayOfPrimitives(typeof(string)));
+        Assert.True(AnalysisService.IsPrimitiveOrArrayOfPrimitives(typeof(decimal)));
+        Assert.True(AnalysisService.IsPrimitiveOrArrayOfPrimitives(typeof(DateTime)));
+        Assert.True(AnalysisService.IsPrimitiveOrArrayOfPrimitives(typeof(string[])));
+        Assert.True(AnalysisService.IsPrimitiveOrArrayOfPrimitives(typeof(List<int>)));
+        Assert.False(AnalysisService.IsPrimitiveOrArrayOfPrimitives(typeof(DeviceInfo)));
     }
 
     [Fact]
@@ -63,12 +60,11 @@ public class AnalysisServiceTests
     [Fact]
     public void GetTargetFramework_ReturnsNet80WhenFileMissing()
     {
-        var method = typeof(AnalysisService).GetMethod("GetTargetFramework", BindingFlags.NonPublic | BindingFlags.Static)!;
         var temp = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
         Directory.CreateDirectory(temp);
         try
         {
-            var framework = (string)method.Invoke(null, new object[] { temp })!;
+            var framework = AnalysisService.GetTargetFramework(temp);
             Assert.Equal("net8.0", framework);
         }
         finally
@@ -80,7 +76,6 @@ public class AnalysisServiceTests
     [Fact]
     public void GetTargetFramework_ReadsValueFromProps()
     {
-        var method = typeof(AnalysisService).GetMethod("GetTargetFramework", BindingFlags.NonPublic | BindingFlags.Static)!;
         var temp = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
         Directory.CreateDirectory(temp);
         File.WriteAllText(Path.Combine(temp, "Directory.Build.props"), """
@@ -92,7 +87,7 @@ public class AnalysisServiceTests
 """);
         try
         {
-            var framework = (string)method.Invoke(null, new object[] { temp })!;
+            var framework = AnalysisService.GetTargetFramework(temp);
             Assert.Equal("net7.0", framework);
         }
         finally
