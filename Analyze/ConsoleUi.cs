@@ -138,8 +138,8 @@ public class ConsoleUi(ILogger logger)
                 var (className, fieldName) = usage.PropertyPath;
                 var totalUsages = usage.Count;
                 propertyTable.AddRow(
-                    $"[green]{className}.{fieldName}[/]",
-                    FormatUsageCount(totalUsages)
+                    FormatBasedOnUsageCount(totalUsages, $"{className}.{fieldName}"),
+                    FormatBasedOnUsageCount(totalUsages, totalUsages)
                 );
             }
 
@@ -163,9 +163,9 @@ public class ConsoleUi(ILogger logger)
             {
                 var (className, fieldName) = usage.PropertyPath;
                 propertyTable.AddRow(
-                    $"[green]{className}.{fieldName}[/]",
+                    FormatBasedOnUsageCount(usage.Count, $"{className}.{fieldName}"),
                     $"[blue]{usage.File}[/]",
-                    FormatUsageCount(usage.Count)
+                    FormatBasedOnUsageCount(usage.Count, usage.Count)
                 );
             }
             
@@ -174,9 +174,9 @@ public class ConsoleUi(ILogger logger)
         }
     }
 
-    private static string FormatUsageCount(int usageCount)
+    private static string FormatBasedOnUsageCount(int usageCount, object value)
     {
-        return $"[{(usageCount == 0 ? "yellow" : "green")}]{usageCount}[/]";
+        return $"[{(usageCount == 0 ? "yellow" : "green")}]{value}[/]";
     }
 
     public void DisplayError(Exception ex)

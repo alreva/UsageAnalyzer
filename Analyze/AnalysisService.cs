@@ -44,20 +44,7 @@ public class AnalysisService(ILogger<AnalysisService> logger)
             deepProperties.Count,
             selectedClass.FullName);
 
-        using var workspace = new AdhocWorkspace(MefHostServices.Create(MefHostServices.DefaultAssemblies));
-        workspace.WorkspaceFailed += (_, args) =>
-        {
-            logger.LogWarning("Workspace failed: {Diagnostic}", args.Diagnostic);
-        };
-        var projectPaths = GetProjectPathsFromSolution(solutionPath);
-        foreach (var projectPath in projectPaths)
-        {
-            LoadProjectIntoWorkspace(workspace, projectPath.Replace("\\", "/"));
-        }
-
-        var solution = workspace.CurrentSolution;
-
-        logger.LogDebug("Loaded solution with {ProjectCount} projects.", solution.Projects.Count());
+        var solution = LoadSolutionWorkspace(solutionPath);
         
         foreach (var project in solution.Projects)
         {
@@ -69,98 +56,19 @@ public class AnalysisService(ILogger<AnalysisService> logger)
             }
                 
             // Skip Analyze project
-            if (project.Name == "Analyze" ||
-                project.Name == "Dto")
+            if (project.Name is "Analyze" or "Dto")
             {
                 logger.LogInformation("Skipping {ProjectName} project.", project.Name);
                 continue;
             }
 
-            var dtoAssemblyPath = GetDtoAssemblyPath(solutionPath);
-            var coreAssemblyPath = Path.GetDirectoryName(typeof(object).Assembly.Location)!;
-            var compilation = (await project
-                    .GetCompilationAsync())?
-                .AddReferences([
-                    MetadataReference.CreateFromFile(typeof(object).Assembly.Location), // System.Private.CoreLib
-                    MetadataReference.CreateFromFile(Path.Combine(coreAssemblyPath, "System.Runtime.dll")),
-                    MetadataReference.CreateFromFile(Path.Combine(coreAssemblyPath, "System.Collections.dll")),
-                    MetadataReference.CreateFromFile(Path.Combine(coreAssemblyPath, "System.Console.dll")),
-                    MetadataReference.CreateFromFile(typeof(List<>).Assembly.Location), // System.Collections.Generic
-                    MetadataReference.CreateFromFile(typeof(Enumerable).Assembly.Location), // System.Linq
-                    MetadataReference.CreateFromFile(typeof(Console).Assembly.Location), // System.Console
-                    MetadataReference.CreateFromFile(dtoAssemblyPath)
-                ]);
+            var compilation = await SetupProjectCompilation(project, solutionPath);
             if (compilation == null)
             {
                 continue;
             }
 
-            foreach (var document in project.Documents)
-            {
-                var filePath = document.FilePath!;
-                if (filePath.Contains("/obj/", StringComparison.OrdinalIgnoreCase)
-                    || filePath.Contains("/bin/"))
-                {
-                    continue;
-                }
-
-                var syntaxTree = await document.GetSyntaxTreeAsync();
-                if (syntaxTree == null)
-                {
-                    continue;
-                }
-
-                var semanticModel = compilation.GetSemanticModel(syntaxTree);
-                var root = await syntaxTree.GetRootAsync();
-
-                logger.LogDebug("Analyzing file: {FilePath}", filePath);
-                
-                var memberAccessExpressionSyntaxes = root
-                    .DescendantNodes()
-                    .OfType<MemberAccessExpressionSyntax>();
-                
-                var deepPropertyNames = deepProperties
-                    .Select(p => p.Property.Name)
-                    .ToHashSet(StringComparer.OrdinalIgnoreCase);
-
-                foreach (var usageCandidate in memberAccessExpressionSyntaxes)
-                {
-                    if (!deepPropertyNames.Contains(usageCandidate.Name.Identifier.Text))
-                    {
-                        continue;
-                    }
-                    
-                    var attribute = GetClassAndFieldName(semanticModel, usageCandidate);
-                    var deepProperty = deepProperties
-                        .SingleOrDefault(p => 
-                            attribute.ClassName == p.Type.Name
-                            &&  attribute.FieldName == p.Property.Name);
-
-                    if (deepProperty == default)
-                    {
-                        logger.LogDebug(
-                            "Property usage for {PropertyName}" +
-                            " in file {FilePath} is of type {ActualClassName}" +
-                            " and does not match expected class {ExpectedClassName}.",
-                            attribute.FieldName,
-                            filePath,
-                            attribute.ClassName,
-                            selectedClass.Name);
-                        continue;
-                    }
-                    
-                    if (string.IsNullOrWhiteSpace(attribute.ClassName))
-                    {
-                        attribute = attribute with { ClassName = selectedClass.Name };
-                    }
-
-                    UsageKey key = new(filePath, attribute);
-                    if (!propertyUsage.TryAdd(key, 1))
-                    {
-                        propertyUsage[key]++;
-                    }
-                }
-            }
+            await AnalyzeProjectDocuments(project, compilation, deepProperties, propertyUsage, selectedClass);
         }
 
         // add unused properties from deepProperties:
@@ -178,6 +86,135 @@ public class AnalysisService(ILogger<AnalysisService> logger)
         }
         
         return propertyUsage;
+    }
+
+    private async Task<Compilation?> SetupProjectCompilation(Project project, string solutionPath)
+    {
+        var dtoAssemblyPath = GetDtoAssemblyPath(solutionPath);
+        var coreAssemblyPath = Path.GetDirectoryName(typeof(object).Assembly.Location)!;
+        return (await project.GetCompilationAsync())?
+            .AddReferences([
+                MetadataReference.CreateFromFile(typeof(object).Assembly.Location), // System.Private.CoreLib
+                MetadataReference.CreateFromFile(Path.Combine(coreAssemblyPath, "System.Runtime.dll")),
+                MetadataReference.CreateFromFile(Path.Combine(coreAssemblyPath, "System.Collections.dll")),
+                MetadataReference.CreateFromFile(Path.Combine(coreAssemblyPath, "System.Console.dll")),
+                MetadataReference.CreateFromFile(typeof(List<>).Assembly.Location), // System.Collections.Generic
+                MetadataReference.CreateFromFile(typeof(Enumerable).Assembly.Location), // System.Linq
+                MetadataReference.CreateFromFile(typeof(Console).Assembly.Location), // System.Console
+                MetadataReference.CreateFromFile(dtoAssemblyPath)
+            ]);
+    }
+
+    private Solution LoadSolutionWorkspace(string solutionPath)
+    {
+        using var workspace = new AdhocWorkspace(MefHostServices.Create(MefHostServices.DefaultAssemblies));
+        workspace.WorkspaceFailed += (_, args) =>
+        {
+            logger.LogWarning("Workspace failed: {Diagnostic}", args.Diagnostic);
+        };
+        var projectPaths = GetProjectPathsFromSolution(solutionPath);
+        foreach (var projectPath in projectPaths)
+        {
+            LoadProjectIntoWorkspace(workspace, projectPath.Replace("\\", "/"));
+        }
+
+        var solution = workspace.CurrentSolution;
+        logger.LogDebug("Loaded solution with {ProjectCount} projects.", solution.Projects.Count());
+        return solution;
+    }
+
+    private async Task AnalyzeProjectDocuments(
+        Project project,
+        Compilation compilation,
+        List<(PropertyInfo Property, Type Type, string FullPath)> deepProperties,
+        Dictionary<UsageKey, int> propertyUsage,
+        Type selectedClass)
+    {
+        foreach (var document in project.Documents)
+        {
+            var filePath = document.FilePath!;
+            if (filePath.Contains("/obj/", StringComparison.OrdinalIgnoreCase)
+                || filePath.Contains("/bin/"))
+            {
+                continue;
+            }
+
+            var syntaxTree = await document.GetSyntaxTreeAsync();
+            if (syntaxTree == null)
+            {
+                continue;
+            }
+
+            var semanticModel = compilation.GetSemanticModel(syntaxTree);
+            var root = await syntaxTree.GetRootAsync();
+
+            logger.LogDebug("Analyzing file: {FilePath}", filePath);
+            
+            var memberAccessExpressionSyntaxes = root
+                .DescendantNodes()
+                .OfType<MemberAccessExpressionSyntax>();
+            
+            var deepPropertyNames = deepProperties
+                .Select(p => p.Property.Name)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+            AnalyzePropertyUsage(
+                memberAccessExpressionSyntaxes,
+                deepPropertyNames,
+                deepProperties,
+                semanticModel,
+                filePath,
+                selectedClass,
+                propertyUsage);
+        }
+    }
+
+    private void AnalyzePropertyUsage(
+        IEnumerable<MemberAccessExpressionSyntax> memberAccessExpressions,
+        HashSet<string> deepPropertyNames,
+        List<(PropertyInfo Property, Type Type, string FullPath)> deepProperties,
+        SemanticModel semanticModel,
+        string filePath,
+        Type selectedClass,
+        Dictionary<UsageKey, int> propertyUsage)
+    {
+        foreach (var usageCandidate in memberAccessExpressions)
+        {
+            if (!deepPropertyNames.Contains(usageCandidate.Name.Identifier.Text))
+            {
+                continue;
+            }
+            
+            var attribute = GetClassAndFieldName(semanticModel, usageCandidate);
+            var deepProperty = deepProperties
+                .SingleOrDefault(p => 
+                    attribute.ClassName == p.Type.Name
+                    &&  attribute.FieldName == p.Property.Name);
+
+            if (deepProperty == default)
+            {
+                logger.LogDebug(
+                    "Property usage for {PropertyName}" +
+                    " in file {FilePath} is of type {ActualClassName}" +
+                    " and does not match expected class {ExpectedClassName}.",
+                    attribute.FieldName,
+                    filePath,
+                    attribute.ClassName,
+                    selectedClass.Name);
+                continue;
+            }
+            
+            if (string.IsNullOrWhiteSpace(attribute.ClassName))
+            {
+                attribute = attribute with { ClassName = selectedClass.Name };
+            }
+
+            UsageKey key = new(filePath, attribute);
+            if (!propertyUsage.TryAdd(key, 1))
+            {
+                propertyUsage[key]++;
+            }
+        }
     }
 
     private static List<(PropertyInfo Property, Type Type, string FullPath)> GetDeepProperties(Type type, string prefix = "")
