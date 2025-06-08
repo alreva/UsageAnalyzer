@@ -2,6 +2,8 @@
 
 A .NET solution for processing and analyzing user event data.
 
+For a high-level overview of the codebase, see [docs/CodebaseOverview.md](docs/CodebaseOverview.md).
+
 ## Project Structure
 
 The solution consists of the following projects:
