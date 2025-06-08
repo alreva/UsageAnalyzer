@@ -5,114 +5,51 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Host.Mef;
 using Microsoft.CodeAnalysis.Text;
 using Microsoft.Extensions.Logging;
-using Spectre.Console;
 
 namespace Analyze;
 
-public class AnalysisService
+public class AnalysisService(ILogger<AnalysisService> logger)
 {
-    private readonly ILogger<AnalysisService> _logger;
-    private readonly string _solutionDir;
-    private readonly string _solutionPath;
-
-    public AnalysisService(ILogger<AnalysisService> logger)
-    {
-        _logger = logger;
-        _solutionPath = FindSolutionFile();
-        _solutionDir = Path.GetDirectoryName(_solutionPath) ??
-                       throw new InvalidOperationException("Solution directory is null");
-        _logger.LogInformation("Resolved solution directory: {SolutionDir}", _solutionDir);
-    }
-
-    private static string FindSolutionFile()
-    {
-        var currentDir = Directory.GetCurrentDirectory();
-        var solutionFiles = Directory.GetFiles(currentDir, "*.sln");
-
-        if (solutionFiles.Length == 1)
-        {
-            return solutionFiles[0];
-        }
-
-        if (solutionFiles.Length > 1)
-        {
-            var selectedSolution = AnsiConsole.Prompt(
-                new SelectionPrompt<string>()
-                    .Title("Multiple solution files found. Please select one:")
-                    .AddChoices(solutionFiles.Select(f =>
-                        Path.GetFileName(f) ?? throw new InvalidOperationException("Solution file name is null"))));
-            return solutionFiles.First(f => Path.GetFileName(f) == selectedSolution);
-        }
-
-        // If no solution file found in current directory, look in parent directory
-        var parentDir = new DirectoryInfo(currentDir);
-        for (var numTry = 0; numTry < 5; numTry++)
-        {
-            parentDir = parentDir.Parent;
-            if (parentDir == null)
-            {
-                break;
-            }
-            
-            var parentSolutionFiles = Directory.GetFiles(parentDir.FullName, "*.sln");
-            switch (parentSolutionFiles.Length)
-            {
-                case 1:
-                    return parentSolutionFiles[0];
-                case > 1:
-                {
-                    var selectedSolution = AnsiConsole.Prompt(
-                        new SelectionPrompt<string>()
-                            .Title("Multiple solution files found in parent directory. Please select one:")
-                            .AddChoices(parentSolutionFiles.Select(f =>
-                                Path.GetFileName(f) ??
-                                throw new InvalidOperationException("Solution file name is null"))));
-                    return parentSolutionFiles.First(f => Path.GetFileName(f) == selectedSolution);
-                }
-            }
-        }
-
-        throw new FileNotFoundException("No solution file found in current or parent directory.");
-    }
-
-    public IEnumerable<Type> GetDtoClasses()
+    public Type[] GetDtoAssemblyTypes(string solutionPath)
     {
         // Path to the Dto.dll (adjust if needed)
-        var dtoDllPath = Path.Combine(_solutionDir, "Dto", "bin", "Debug", "net10.0", "Dto.dll");
-        if (!File.Exists(dtoDllPath))
+        var dtoAssemblyPath = GetDtoAssemblyPath(solutionPath);
+        if (!File.Exists(dtoAssemblyPath))
         {
-            throw new FileNotFoundException($"Dto.dll not found at {dtoDllPath}. Please build the Dto project first.");
+            throw new FileNotFoundException($"Dto.dll not found at {dtoAssemblyPath}. Please build the Dto project first.");
         }
 
-        var assembly = Assembly.LoadFrom(dtoDllPath);
+        var assembly = Assembly.LoadFrom(dtoAssemblyPath);
         return assembly.GetTypes()
-            .Where(t => t.IsClass && t.Namespace == "Dto")
-            .ToList();
+            .Where(t => t is { IsClass: true, Namespace: "Dto" })
+            .ToArray();
     }
 
-    public async Task<Dictionary<UsageKey, int>> AnalyzeUsageAsync(Type selectedClass)
+    private static string GetDtoAssemblyPath(string solutionPath)
     {
-        var shouldSkipTestProjects = AnsiConsole.Prompt(
-            new SelectionPrompt<string>()
-                .Title("Skip test project analysis?")
-                .AddChoices("Yes", "No")) == "Yes";
+        var solutionDir = Path.GetDirectoryName(solutionPath)!;
+        var dtoAssemblyPath = Path.Combine(solutionDir, "Dto", "bin", "Debug", "net10.0", "Dto.dll");
+        return dtoAssemblyPath;
+    }
 
-        _logger.LogDebug("Starting analysis for class: {SelectedClassFullName}", selectedClass.FullName);
+    public async Task<Dictionary<UsageKey, int>> AnalyzeUsageAsync(string solutionPath, Type selectedClass, bool shouldSkipTestProjects)
+    {
+        logger.LogDebug("Starting analysis for class: {SelectedClassFullName}", selectedClass.FullName);
         var propertyUsage = new Dictionary<UsageKey, int>();
 
         // Find property references
         var deepProperties = GetDeepProperties(selectedClass);
-        _logger.LogDebug(
+        logger.LogDebug(
             "Found {Count} deep properties in {CurrentTypeFullName}",
             deepProperties.Count,
             selectedClass.FullName);
 
         using var workspace = new AdhocWorkspace(MefHostServices.Create(MefHostServices.DefaultAssemblies));
-        workspace.WorkspaceFailed += (sender, args) =>
+        workspace.WorkspaceFailed += (_, args) =>
         {
-            _logger.LogWarning("Workspace failed: {Diagnostic}", args.Diagnostic);
+            logger.LogWarning("Workspace failed: {Diagnostic}", args.Diagnostic);
         };
-        var projectPaths = GetProjectPathsFromSolution(_solutionPath);
+        var projectPaths = GetProjectPathsFromSolution(solutionPath);
         foreach (var projectPath in projectPaths)
         {
             LoadProjectIntoWorkspace(workspace, projectPath.Replace("\\", "/"));
@@ -120,14 +57,14 @@ public class AnalysisService
 
         var solution = workspace.CurrentSolution;
 
-        _logger.LogDebug("Loaded solution with {ProjectCount} projects.", solution.Projects.Count());
+        logger.LogDebug("Loaded solution with {ProjectCount} projects.", solution.Projects.Count());
         
         foreach (var project in solution.Projects)
         {
             // Skip Test project
             if (shouldSkipTestProjects && project.Name.EndsWith("Tests"))
             {
-                _logger.LogInformation("Skipping test project {ProjectName}.", project.Name);
+                logger.LogInformation("Skipping test project {ProjectName}.", project.Name);
                 continue;
             }
                 
@@ -135,12 +72,12 @@ public class AnalysisService
             if (project.Name == "Analyze" ||
                 project.Name == "Dto")
             {
-                _logger.LogInformation("Skipping {ProjectName} project.", project.Name);
+                logger.LogInformation("Skipping {ProjectName} project.", project.Name);
                 continue;
             }
 
+            var dtoAssemblyPath = GetDtoAssemblyPath(solutionPath);
             var coreAssemblyPath = Path.GetDirectoryName(typeof(object).Assembly.Location)!;
-            var dtoAssemblyPath = Path.Combine(_solutionDir, "Dto", "bin", "Debug", "net10.0", "Dto.dll");
             var compilation = (await project
                     .GetCompilationAsync())?
                 .AddReferences([
@@ -176,7 +113,7 @@ public class AnalysisService
                 var semanticModel = compilation.GetSemanticModel(syntaxTree);
                 var root = await syntaxTree.GetRootAsync();
 
-                _logger.LogDebug("Analyzing file: {FilePath}", filePath);
+                logger.LogDebug("Analyzing file: {FilePath}", filePath);
                 
                 var memberAccessExpressionSyntaxes = root
                     .DescendantNodes()
@@ -201,7 +138,7 @@ public class AnalysisService
 
                     if (deepProperty == default)
                     {
-                        _logger.LogDebug(
+                        logger.LogDebug(
                             "Property usage for {PropertyName}" +
                             " in file {FilePath} is of type {ActualClassName}" +
                             " and does not match expected class {ExpectedClassName}.",
@@ -327,12 +264,12 @@ public class AnalysisService
     {
         if (!File.Exists(projectPath))
         {
-            _logger.LogWarning("Project file not found: {ProjectPath}", projectPath);
+            logger.LogWarning("Project file not found: {ProjectPath}", projectPath);
             return;
         }
 
         var projectName = Path.GetFileNameWithoutExtension(projectPath);
-        _logger.LogInformation("Loading project: {ProjectName} from {ProjectPath}", projectName, projectPath);
+        logger.LogInformation("Loading project: {ProjectName} from {ProjectPath}", projectName, projectPath);
 
         var projectInfo = ProjectInfo.Create(
             ProjectId.CreateNewId(),

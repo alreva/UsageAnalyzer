@@ -7,7 +7,7 @@ namespace Analyze;
 
 public class Program
 {
-    private static async Task Main(string[] args)
+    public static async Task Main(string[] args)
     {
         var configuration = new ConfigurationBuilder()
             .SetBasePath(Directory.GetCurrentDirectory())
@@ -25,9 +25,10 @@ public class Program
         try
         {
             consoleUi.DisplayWelcome();
+            var solutionPath = consoleUi.FindSolutionFile();
 
             // Get all DTO classes
-            var dtoClasses = analysisService.GetDtoClasses().ToList();
+            var dtoClasses = analysisService.GetDtoAssemblyTypes(solutionPath).ToList();
             if (!dtoClasses.Any())
             {
                 AnsiConsole.MarkupLine("[red]No DTO classes found in the Dto project.[/]");
@@ -44,11 +45,13 @@ public class Program
             // Ask user for property usage output format
             var propertyUsageFormat = consoleUi.PromptForPropertyUsageFormat();
 
+            var skipTestProjects = consoleUi.PromptToSkipTestProjects();
+
             consoleUi.DisplayAnalysisStart(selectedClass);
 
             // Analyze usage
-            var propertyUsage = await analysisService.AnalyzeUsageAsync(
-                selectedClass);
+            var propertyUsage = await analysisService
+                .AnalyzeUsageAsync(solutionPath, selectedClass, skipTestProjects);
 
             // Display results
             consoleUi.DisplayResults(propertyUsage, selectedClass, propertyUsageFormat);

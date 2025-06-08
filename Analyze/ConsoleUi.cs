@@ -3,19 +3,12 @@ using Spectre.Console;
 
 namespace Analyze;
 
-public class ConsoleUi
+public class ConsoleUi(ILogger logger)
 {
     public enum PropertyUsageFormat
     {
         TotalUsages,
         UsagesPerFile
-    }
-
-    private readonly ILogger _logger;
-
-    public ConsoleUi(ILogger logger)
-    {
-        _logger = logger;
     }
 
     public void DisplayWelcome()
@@ -47,12 +40,6 @@ public class ConsoleUi
         AnsiConsole.MarkupLine($"[green]Analyzing usage of {selectedClass.Name}...[/]");
     }
 
-    public void DisplayAnalysisProgress(Action<StatusContext> updateStatus)
-    {
-        AnsiConsole.Status()
-            .Start("Analyzing...", ctx => updateStatus(ctx));
-    }
-
     public PropertyUsageFormat PromptForPropertyUsageFormat()
     {
         var choice = AnsiConsole.Prompt(
@@ -60,6 +47,65 @@ public class ConsoleUi
                 .Title("How would you like to display property usage?")
                 .AddChoices("Show usages per file", "Show only total usages"));
         return choice == "Show usages per file" ? PropertyUsageFormat.UsagesPerFile : PropertyUsageFormat.TotalUsages;
+    }
+
+    public bool PromptToSkipTestProjects()
+    {
+        return AnsiConsole.Prompt(
+            new SelectionPrompt<string>()
+                .Title("Skip test project analysis?")
+                .AddChoices("Yes", "No")) == "Yes";
+    }
+    
+    public string FindSolutionFile()
+    {
+        var currentDir = Directory.GetCurrentDirectory();
+        var solutionFiles = Directory.GetFiles(currentDir, "*.sln");
+
+        if (solutionFiles.Length == 1)
+        {
+            return solutionFiles[0];
+        }
+
+        if (solutionFiles.Length > 1)
+        {
+            var selectedSolution = AnsiConsole.Prompt(
+                new SelectionPrompt<string>()
+                    .Title("Multiple solution files found. Please select one:")
+                    .AddChoices(solutionFiles.Select(f =>
+                        Path.GetFileName(f) ?? throw new InvalidOperationException("Solution file name is null"))));
+            return solutionFiles.First(f => Path.GetFileName(f) == selectedSolution);
+        }
+
+        // If no solution file found in current directory, look in parent directory
+        var parentDir = new DirectoryInfo(currentDir);
+        for (var numTry = 0; numTry < 5; numTry++)
+        {
+            parentDir = parentDir.Parent;
+            if (parentDir == null)
+            {
+                break;
+            }
+            
+            var parentSolutionFiles = Directory.GetFiles(parentDir.FullName, "*.sln");
+            switch (parentSolutionFiles.Length)
+            {
+                case 1:
+                    return parentSolutionFiles[0];
+                case > 1:
+                {
+                    var selectedSolution = AnsiConsole.Prompt(
+                        new SelectionPrompt<string>()
+                            .Title("Multiple solution files found in parent directory. Please select one:")
+                            .AddChoices(parentSolutionFiles.Select(f =>
+                                Path.GetFileName(f) ??
+                                throw new InvalidOperationException("Solution file name is null"))));
+                    return parentSolutionFiles.First(f => Path.GetFileName(f) == selectedSolution);
+                }
+            }
+        }
+
+        throw new FileNotFoundException("No solution file found in current or parent directory.");
     }
 
     public void DisplayResults(
@@ -136,7 +182,6 @@ public class ConsoleUi
     public void DisplayError(Exception ex)
     {
         AnsiConsole.MarkupLine($"[red]An error occurred: {ex.Message}[/]");
-        // AnsiConsole.MarkupLine($"[red]Stack trace: {ex.StackTrace}[/]");
-        _logger.LogError(ex, "An error occurred during analysis");
+        logger.LogError(ex, "An error occurred during analysis");
     }
 }
