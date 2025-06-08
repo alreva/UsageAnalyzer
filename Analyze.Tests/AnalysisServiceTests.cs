@@ -52,9 +52,9 @@ public class AnalysisServiceTests
     [Fact]
     public void GetDeepProperties_ReturnsNestedPaths()
     {
-        var method = typeof(AnalysisService).GetMethod("GetDeepProperties", BindingFlags.NonPublic | BindingFlags.Static)!;
-        var result = (IEnumerable<object>)method.Invoke(null, new object[] { typeof(User), "" })!;
-        var paths = result.Select(t => (string)t.GetType().GetProperty("Item3")!.GetValue(t)!);
+        var uType = typeof(User);
+        var result = AnalysisService.GetDeepProperties(uType)!;
+        var paths = result.Select(p => p.FullPath).ToList();
         Assert.Contains("Address.City", paths);
         Assert.Contains("SocialMedia.Twitter", paths);
         Assert.Contains("DeviceInfo.IpAddress", paths);

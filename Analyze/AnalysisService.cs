@@ -232,7 +232,7 @@ public class AnalysisService(ILogger<AnalysisService> logger)
         }
     }
 
-    private static List<(PropertyInfo Property, Type Type, string FullPath)> GetDeepProperties(Type type, string prefix = "")
+    public static List<(PropertyInfo Property, Type Type, string FullPath)> GetDeepProperties(Type type, string prefix = "")
     {
         var properties = new List<(PropertyInfo Property, Type Type, string FullPath)>();
 
