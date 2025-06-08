@@ -34,10 +34,19 @@ cd Analyze
 dotnet run
 ```
 
-The application provides a console interface for analyzing user data. Follow the on-screen prompts to:
-1. Select the type of data to analyze
-2. Input or load JSON data
-3. View the processed results
+The application is a DTO Usage Analyzer that helps you understand how DTO classes and their properties are used throughout your solution. It provides:
+
+1. A selection of DTO classes to analyze
+2. Analysis of property usage across the solution
+3. Detailed reports showing:
+   - Total usage count for each property
+   - Usage distribution across different files
+   - Identification of unused properties
+
+The tool helps identify:
+- Which DTO properties are most frequently used
+- Where specific properties are being accessed
+- Potentially unused properties that might be candidates for removal
 
 ### Running Tests
 
