@@ -1,0 +1,225 @@
+        }
+
+        // If no solution file found in current directory, look in parent directory
+        var parentDir = new DirectoryInfo(currentDir);
+        for (var numTry = 0; numTry < 5; numTry++)
+        {
+            parentDir = parentDir.Parent;
+            if (parentDir == null)
+            {
+                break;
+            }
+            
+            var parentSolutionFiles = Directory.GetFiles(parentDir.FullName, "*.sln");
+            switch (parentSolutionFiles.Length)
+            {
+                case 1:
+                    return parentSolutionFiles[0];
+                case > 1:
+                {
+                    var selectedSolution = AnsiConsole.Prompt(
+                        new SelectionPrompt<string>()
+                            .Title("Multiple solution files found in parent directory. Please select one:")
+                            .AddChoices(parentSolutionFiles.Select(f =>
+                                Path.GetFileName(f) ??
+                                throw new InvalidOperationException("Solution file name is null"))));
+                    return parentSolutionFiles.First(f => Path.GetFileName(f) == selectedSolution);
+                }
+            }
+        }
+
+        throw new FileNotFoundException("No solution file found in current or parent directory.");
+    }
+
+    public void DisplayResults(
+        Dictionary<UsageKey, int> propertyUsage,
+        Type selectedClass,
+        PropertyUsageFormat propertyUsageFormat)
+    {
+        // Property Usage Table
+        AnsiConsole.MarkupLine("\n[bold blue]Property Usage Analysis[/]");
+        if (propertyUsageFormat == PropertyUsageFormat.TotalUsages)
+        {
+            var propertyTable = new Table()
+                .Border(TableBorder.Rounded)
+                .AddColumn(new TableColumn("[bold]Property[/]").LeftAligned())
+                .AddColumn(new TableColumn("[bold]Total Usages[/]").RightAligned());
+
+            var propertyUsageData = propertyUsage
+                .Select(u => new { PropertyPath = u.Key.Attribute, Count = u.Value })
+                .GroupBy(x => x.PropertyPath)
+                .OrderBy(x => x.Key.ClassName)
+                .ThenBy(x => x.Key.FieldName)
+                .Select(x => new
+                {
+                    PropertyPath = x.Key,
+                    Count = x.Sum(y => y.Count)
+                });
+
+            foreach (var usage in propertyUsageData)
+            {
+                var (className, fieldName) = usage.PropertyPath;
+                var totalUsages = usage.Count;
+                propertyTable.AddRow(
+                    FormatBasedOnUsageCount(totalUsages, $"{className}.{fieldName}"),
+                    FormatBasedOnUsageCount(totalUsages, totalUsages)
+                );
+            }
+
+            AnsiConsole.Write(propertyTable);
+        }
+        else // UsagesPerFile
+        {
+            var propertyTable = new Table()
+                .Border(TableBorder.Rounded)
+                .AddColumn(new TableColumn("[bold]Property[/]").LeftAligned())
+                .AddColumn(new TableColumn("[bold]File[/]").LeftAligned())
+                .AddColumn(new TableColumn("[bold]Usages[/]").RightAligned());
+
+            var propertyUsageData = propertyUsage
+                .Select(u => new { File = u.Key.FilePath, PropertyPath = u.Key.Attribute, Count = u.Value })
+                .OrderBy(g => g.PropertyPath.ClassName)
+                .ThenBy(g => g.PropertyPath.FieldName)
+                .ThenBy(g => g.File);
+
+            foreach (var usage in propertyUsageData)
+            {
+                var (className, fieldName) = usage.PropertyPath;
+                propertyTable.AddRow(
+                    FormatBasedOnUsageCount(usage.Count, $"{className}.{fieldName}"),
+                    $"[blue]{usage.File}[/]",
+                    FormatBasedOnUsageCount(usage.Count, usage.Count)
+                );
+            }
+            
+
+            AnsiConsole.Write(propertyTable);
+        }
+    }
+
+    private static string FormatBasedOnUsageCount(int usageCount, object value)
+    {
+        return $"[{(usageCount == 0 ? "yellow" : "green")}]{value}[/]";
+    }
+
+    public void DisplayError(Exception ex)
+    {
+        AnsiConsole.MarkupLine($"[red]An error occurred: {ex.Message}[/]");
+        logger.LogError(ex, "An error occurred during analysis");
+    }
+}
+
+-- Analyze/Program.cs --
+﻿using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+using Spectre.Console;
+
+namespace Analyze;
+
+public class Program
+{
+    public static async Task Main(string[] args)
+    {
+        var configuration = new ConfigurationBuilder()
+            .SetBasePath(Directory.GetCurrentDirectory())
+            .AddJsonFile("appsettings.json", false)
+            .Build();
+
+        var services = new ServiceCollection();
+        ConfigureServices(services, configuration);
+        var serviceProvider = services.BuildServiceProvider();
+
+        var logger = serviceProvider.GetRequiredService<ILogger<Program>>();
+        var analysisService = serviceProvider.GetRequiredService<AnalysisService>();
+        var consoleUi = new ConsoleUi(logger);
+
+        try
+        {
+            consoleUi.DisplayWelcome();
+            var solutionPath = consoleUi.FindSolutionFile();
+
+            // Get all DTO classes
+            var dtoClasses = analysisService.GetDtoAssemblyTypes(solutionPath).ToList();
+            if (!dtoClasses.Any())
+            {
+                AnsiConsole.MarkupLine("[red]No DTO classes found in the Dto project.[/]");
+                return;
+            }
+
+            // Let user select a class
+            var selectedClass = consoleUi.PromptForClassSelection(dtoClasses);
+            if (selectedClass == null)
+            {
+                return;
+            }
+
+            // Ask user for property usage output format
+            var propertyUsageFormat = consoleUi.PromptForPropertyUsageFormat();
+
+            var skipTestProjects = consoleUi.PromptToSkipTestProjects();
+
+            consoleUi.DisplayAnalysisStart(selectedClass);
+
+            // Analyze usage
+            var propertyUsage = await analysisService
+                .AnalyzeUsageAsync(solutionPath, selectedClass, skipTestProjects);
+
+            // Display results
+            consoleUi.DisplayResults(propertyUsage, selectedClass, propertyUsageFormat);
+        }
+        catch (Exception ex)
+        {
+            consoleUi.DisplayError(ex);
+        }
+    }
+
+    private static void ConfigureServices(IServiceCollection services, IConfiguration configuration)
+    {
+        services.AddLogging(builder =>
+        {
+            builder.AddConsole();
+            builder.AddConfiguration(configuration.GetSection("Logging"));
+        });
+
+        services.AddSingleton<AnalysisService>();
+    }
+}
+
+-- Analyze/UsageKey.cs --
+namespace Analyze;
+
+public record UsageKey(string FilePath, ClassAndField Attribute) : IComparable<UsageKey>
+{
+    public int CompareTo(UsageKey? other)
+    {
+        if (ReferenceEquals(this, other))
+        {
+            return 0;
+        }
+
+        if (other is null)
+        {
+            return 1;
+        }
+
+        var filePathComparison = string.Compare(FilePath, other.FilePath, StringComparison.Ordinal);
+        if (filePathComparison != 0)
+        {
+            return filePathComparison;
+        }
+
+        return Attribute.CompareTo(other.Attribute);
+    }
+}
+
+-- Analyze/appsettings.json --
+{
+  "Logging": {
+    "LogLevel": {
+      "Default": "Warning"
+    }
+  }
+} 
+
+-- Directory.Build.props --

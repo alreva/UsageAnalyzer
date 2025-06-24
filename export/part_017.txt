@@ -1,0 +1,225 @@
+		{679A324D-3FCE-4F9B-85E5-DBAE9F429AD6}.Release|x86.Build.0 = Release|Any CPU
+		{4DBBB78A-5FFF-4E82-AEC0-E3B64654FB53}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{4DBBB78A-5FFF-4E82-AEC0-E3B64654FB53}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{4DBBB78A-5FFF-4E82-AEC0-E3B64654FB53}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{4DBBB78A-5FFF-4E82-AEC0-E3B64654FB53}.Debug|x64.Build.0 = Debug|Any CPU
+		{4DBBB78A-5FFF-4E82-AEC0-E3B64654FB53}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{4DBBB78A-5FFF-4E82-AEC0-E3B64654FB53}.Debug|x86.Build.0 = Debug|Any CPU
+		{4DBBB78A-5FFF-4E82-AEC0-E3B64654FB53}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{4DBBB78A-5FFF-4E82-AEC0-E3B64654FB53}.Release|Any CPU.Build.0 = Release|Any CPU
+		{4DBBB78A-5FFF-4E82-AEC0-E3B64654FB53}.Release|x64.ActiveCfg = Release|Any CPU
+		{4DBBB78A-5FFF-4E82-AEC0-E3B64654FB53}.Release|x64.Build.0 = Release|Any CPU
+		{4DBBB78A-5FFF-4E82-AEC0-E3B64654FB53}.Release|x86.ActiveCfg = Release|Any CPU
+		{4DBBB78A-5FFF-4E82-AEC0-E3B64654FB53}.Release|x86.Build.0 = Release|Any CPU
+		{864F2924-304C-4744-BDE3-E2EB3310AC2F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{864F2924-304C-4744-BDE3-E2EB3310AC2F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{864F2924-304C-4744-BDE3-E2EB3310AC2F}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{864F2924-304C-4744-BDE3-E2EB3310AC2F}.Debug|x64.Build.0 = Debug|Any CPU
+		{864F2924-304C-4744-BDE3-E2EB3310AC2F}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{864F2924-304C-4744-BDE3-E2EB3310AC2F}.Debug|x86.Build.0 = Debug|Any CPU
+		{864F2924-304C-4744-BDE3-E2EB3310AC2F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{864F2924-304C-4744-BDE3-E2EB3310AC2F}.Release|Any CPU.Build.0 = Release|Any CPU
+		{864F2924-304C-4744-BDE3-E2EB3310AC2F}.Release|x64.ActiveCfg = Release|Any CPU
+		{864F2924-304C-4744-BDE3-E2EB3310AC2F}.Release|x64.Build.0 = Release|Any CPU
+		{864F2924-304C-4744-BDE3-E2EB3310AC2F}.Release|x86.ActiveCfg = Release|Any CPU
+		{864F2924-304C-4744-BDE3-E2EB3310AC2F}.Release|x86.Build.0 = Release|Any CPU
+		{05BF502A-CCF2-4B60-8E29-7DAED5866A14}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{05BF502A-CCF2-4B60-8E29-7DAED5866A14}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{05BF502A-CCF2-4B60-8E29-7DAED5866A14}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{05BF502A-CCF2-4B60-8E29-7DAED5866A14}.Debug|x64.Build.0 = Debug|Any CPU
+		{05BF502A-CCF2-4B60-8E29-7DAED5866A14}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{05BF502A-CCF2-4B60-8E29-7DAED5866A14}.Debug|x86.Build.0 = Debug|Any CPU
+		{05BF502A-CCF2-4B60-8E29-7DAED5866A14}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{05BF502A-CCF2-4B60-8E29-7DAED5866A14}.Release|Any CPU.Build.0 = Release|Any CPU
+		{05BF502A-CCF2-4B60-8E29-7DAED5866A14}.Release|x64.ActiveCfg = Release|Any CPU
+		{05BF502A-CCF2-4B60-8E29-7DAED5866A14}.Release|x64.Build.0 = Release|Any CPU
+		{05BF502A-CCF2-4B60-8E29-7DAED5866A14}.Release|x86.ActiveCfg = Release|Any CPU
+                {05BF502A-CCF2-4B60-8E29-7DAED5866A14}.Release|x86.Build.0 = Release|Any CPU
+                {FAA7AD07-59CB-43F5-9457-B7CAAAF2D180}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+                {FAA7AD07-59CB-43F5-9457-B7CAAAF2D180}.Debug|Any CPU.Build.0 = Debug|Any CPU
+                {FAA7AD07-59CB-43F5-9457-B7CAAAF2D180}.Debug|x64.ActiveCfg = Debug|Any CPU
+                {FAA7AD07-59CB-43F5-9457-B7CAAAF2D180}.Debug|x64.Build.0 = Debug|Any CPU
+                {FAA7AD07-59CB-43F5-9457-B7CAAAF2D180}.Debug|x86.ActiveCfg = Debug|Any CPU
+                {FAA7AD07-59CB-43F5-9457-B7CAAAF2D180}.Debug|x86.Build.0 = Debug|Any CPU
+                {FAA7AD07-59CB-43F5-9457-B7CAAAF2D180}.Release|Any CPU.ActiveCfg = Release|Any CPU
+                {FAA7AD07-59CB-43F5-9457-B7CAAAF2D180}.Release|Any CPU.Build.0 = Release|Any CPU
+                {FAA7AD07-59CB-43F5-9457-B7CAAAF2D180}.Release|x64.ActiveCfg = Release|Any CPU
+                {FAA7AD07-59CB-43F5-9457-B7CAAAF2D180}.Release|x64.Build.0 = Release|Any CPU
+                {FAA7AD07-59CB-43F5-9457-B7CAAAF2D180}.Release|x86.ActiveCfg = Release|Any CPU
+                {FAA7AD07-59CB-43F5-9457-B7CAAAF2D180}.Release|x86.Build.0 = Release|Any CPU
+        EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal
+
+-- appsettings.json --
+{
+  "Logging": {
+    "LogLevel": {
+      "Default": "Debug",
+      "Microsoft": "Warning"
+    }
+  }
+} 
+
+-- docs/CodebaseOverview.md --
+# Codebase Overview
+
+This document provides a high-level introduction for newcomers. It summarizes the structure of the repository and explains the main components.
+
+## Repository Layout
+
+The solution contains several projects:
+
+- **Dto** – Defines the data transfer objects (DTOs) used to deserialize user event JSON.
+- **Processors** – Includes small processors that operate on DTOs. Each processor reads JSON input, deserializes it, and writes formatted output.
+- **Analyze** – A command-line tool that analyzes how DTO classes and their properties are used across a solution.
+- **Dto.Tests** – Unit tests for the DTO project.
+- **Processors.Tests** – Unit tests for the processor components.
+
+## DTOs
+
+DTOs such as `UserEventDto` model the data contained in user event payloads. They use C# `required` properties so deserialization fails if mandatory fields are missing.
+
+## Processors
+
+Processors inherit from `BaseProcessor<TDto>`, which handles JSON deserialization and shared helper methods. Examples include `UserAddressProcessor` and `UserEventProcessor`. Each processor writes formatted information about the DTO to a `TextWriter`.
+
+## Analyze Project
+
+The `Analyze` project is a console application. It loads a solution, locates DTO classes, and uses Roslyn to analyze how properties are accessed. The tool reports usage counts and unused properties.
+
+### Key Steps
+
+1. Configure services and logging.
+2. Select the solution file and DTO class to analyze.
+3. Run Roslyn-based analysis to count property access.
+4. Display results in the console.
+
+## Tips for New Contributors
+
+- Explore the processors under `Processors/` to understand their structure.
+- Review `Analyze/AnalysisService.cs` to see how Roslyn is used for static analysis.
+- Run the command-line tool with a real solution to view usage output.
+- Check the unit tests for examples of how processors and DTOs are validated.
+
+
+-- global.json --
+{
+  "sdk": {
+    "version": "8.0.100",
+    "rollForward": "latestFeature"
+  }
+} 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
