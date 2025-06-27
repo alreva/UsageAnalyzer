@@ -1,0 +1,180 @@
+<Project>
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+  </PropertyGroup>
+</Project> 
+
+-- Directory.Packages.props --
+<Project>
+  <PropertyGroup>
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageVersion Include="coverlet.collector" Version="6.0.4" />
+    <PackageVersion Include="Microsoft.Build.Tasks.Core" Version="17.14.8" />
+    <PackageVersion Include="Microsoft.CodeAnalysis.CSharp" Version="4.14.0" />
+    <PackageVersion Include="Microsoft.CodeAnalysis.CSharp.Workspaces" Version="4.14.0" />
+    <PackageVersion Include="Microsoft.Extensions.DependencyInjection" Version="10.0.0-preview.4.25258.110" />
+    <PackageVersion Include="Microsoft.Extensions.Logging" Version="10.0.0-preview.4.25258.110" />
+    <PackageVersion Include="Microsoft.Extensions.Logging.Console" Version="10.0.0-preview.4.25258.110" />
+    <PackageVersion Include="Microsoft.Extensions.Configuration" Version="10.0.0-preview.4.25258.110" />
+    <PackageVersion Include="Microsoft.Extensions.Configuration.FileExtensions" Version="10.0.0-preview.4.25258.110" />
+    <PackageVersion Include="Microsoft.Extensions.Configuration.Json" Version="10.0.0-preview.4.25258.110" />
+    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
+    <PackageVersion Include="Spectre.Console" Version="0.50.1-preview.0.10" />
+    <PackageVersion Include="xunit" Version="2.9.3" />
+    <PackageVersion Include="xunit.runner.visualstudio" Version="3.1.0" />
+    <PackageVersion Include="Microsoft.CodeAnalysis.Workspaces.MSBuild" Version="4.14.0" />
+  </ItemGroup>
+</Project>
+
+-- Dto.Tests/Dto.Tests.csproj --
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="coverlet.collector">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="Microsoft.NET.Test.Sdk"/>
+    <PackageReference Include="xunit"/>
+    <PackageReference Include="xunit.runner.visualstudio">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit"/>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="Dto">
+      <HintPath>..\Dto\bin\Debug\$(TargetFramework)\Dto.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+
+</Project>
+
+-- Dto.Tests/UserEventDtoTests.cs --
+using System.Text.Json;
+
+namespace Dto.Tests;
+
+public class UserEventDtoTests
+{
+    [Fact]
+    public void SerializeDeserialize_UserEventDto_ShouldMatch()
+    {
+        // Arrange
+        var userEventDto = new UserEventDto
+        {
+            EventId = "12345",
+            Timestamp = DateTime.Parse("2023-10-01T12:00:00Z"),
+            Source = "User Activity System",
+            Message = "User has been imported.",
+            User = new User
+            {
+                UserId = "user123",
+                Username = "johndoe",
+                Email = "john.doe@example.com",
+                FirstName = "John",
+                LastName = "Doe",
+                DateOfBirth = DateTime.Parse("1980-01-01"),
+                Gender = "Male",
+                PhoneNumber = "+1234567890",
+                Address = new Address
+                {
+                    Street = "123 Main St",
+                    City = "Anytown",
+                    State = "CA",
+                    ZipCode = "12345",
+                    Country = "USA"
+                },
+                Preferences = new Preferences
+                {
+                    Theme = "dark",
+                    Language = "en",
+                    Notifications = true,
+                    Newsletter = false,
+                    Timezone = "UTC-8"
+                },
+                LastLogin = DateTime.Parse("2023-09-30T10:00:00Z"),
+                AccountStatus = "active",
+                SubscriptionPlan = "premium",
+                PaymentMethod = "credit card",
+                LastPaymentDate = DateTime.Parse("2023-09-15"),
+                TotalOrders = 15,
+                FavoriteCategories = new List<string> { "electronics", "books", "clothing" },
+                Wishlist = new List<string> { "item1", "item2", "item3" },
+                RecentSearches = new List<string> { "laptop", "headphones", "smartphone" },
+                CartItems = 3,
+                LoyaltyPoints = 500,
+                ReferralCode = "REF123",
+                SocialMedia = new SocialMedia
+                {
+                    Facebook = "facebook.com/johndoe",
+                    Twitter = "twitter.com/johndoe",
+                    Instagram = "instagram.com/johndoe"
+                },
+                DeviceInfo = new DeviceInfo
+                {
+                    DeviceType = "mobile",
+                    Os = "iOS",
+                    Browser = "Safari",
+                    IpAddress = "192.168.1.1"
+                },
+                ActivityLog = new List<ActivityLog>
+                {
+                    new()
+                    {
+                        Action = "login",
+                        Timestamp = DateTime.Parse("2023-09-30T10:00:00Z")
+                    },
+                    new()
+                    {
+                        Action = "viewProduct",
+                        ProductId = "prod123",
+                        Timestamp = DateTime.Parse("2023-09-30T10:05:00Z")
+                    }
+                }
+            }
+        };
+
+        // Act
+        var jsonString = JsonSerializer.Serialize(userEventDto);
+        var deserializedUserEventDto = JsonSerializer.Deserialize<UserEventDto>(jsonString);
+
+        // Assert
+        Assert.NotNull(deserializedUserEventDto);
+        Assert.NotNull(deserializedUserEventDto.User);
+        Assert.NotNull(deserializedUserEventDto.User.Address);
+        Assert.NotNull(deserializedUserEventDto.User.Preferences);
+        Assert.NotNull(deserializedUserEventDto.User.SocialMedia);
+        Assert.NotNull(deserializedUserEventDto.User.DeviceInfo);
+        Assert.NotNull(deserializedUserEventDto.User.ActivityLog);
+        Assert.Equal(2, deserializedUserEventDto.User.ActivityLog.Count);
+
+        Assert.Equal(userEventDto.EventId, deserializedUserEventDto.EventId);
+        Assert.Equal(userEventDto.Timestamp, deserializedUserEventDto.Timestamp);
+        Assert.Equal(userEventDto.Source, deserializedUserEventDto.Source);
+        Assert.Equal(userEventDto.Message, deserializedUserEventDto.Message);
+        Assert.Equal(userEventDto.User.UserId, deserializedUserEventDto.User.UserId);
+        Assert.Equal(userEventDto.User.Username, deserializedUserEventDto.User.Username);
+        Assert.Equal(userEventDto.User.Email, deserializedUserEventDto.User.Email);
+        Assert.Equal(userEventDto.User.FirstName, deserializedUserEventDto.User.FirstName);
+        Assert.Equal(userEventDto.User.LastName, deserializedUserEventDto.User.LastName);
+        Assert.Equal(userEventDto.User.DateOfBirth, deserializedUserEventDto.User.DateOfBirth);
+        Assert.Equal(userEventDto.User.Gender, deserializedUserEventDto.User.Gender);
+        Assert.Equal(userEventDto.User.PhoneNumber, deserializedUserEventDto.User.PhoneNumber);
+        Assert.Equal(userEventDto.User.Address.Street, deserializedUserEventDto.User.Address.Street);
+        Assert.Equal(userEventDto.User.Address.City, deserializedUserEventDto.User.Address.City);
+        Assert.Equal(userEventDto.User.Address.State, deserializedUserEventDto.User.Address.State);
+        Assert.Equal(userEventDto.User.Address.ZipCode, deserializedUserEventDto.User.Address.ZipCode);

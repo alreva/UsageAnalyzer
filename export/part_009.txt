@@ -1,0 +1,225 @@
+        Assert.Equal(userEventDto.User.Address.Country, deserializedUserEventDto.User.Address.Country);
+        Assert.Equal(userEventDto.User.Preferences.Theme, deserializedUserEventDto.User.Preferences.Theme);
+        Assert.Equal(userEventDto.User.Preferences.Language, deserializedUserEventDto.User.Preferences.Language);
+        Assert.Equal(userEventDto.User.Preferences.Notifications,
+            deserializedUserEventDto.User.Preferences.Notifications);
+        Assert.Equal(userEventDto.User.Preferences.Newsletter, deserializedUserEventDto.User.Preferences.Newsletter);
+        Assert.Equal(userEventDto.User.Preferences.Timezone, deserializedUserEventDto.User.Preferences.Timezone);
+        Assert.Equal(userEventDto.User.LastLogin, deserializedUserEventDto.User.LastLogin);
+        Assert.Equal(userEventDto.User.AccountStatus, deserializedUserEventDto.User.AccountStatus);
+        Assert.Equal(userEventDto.User.SubscriptionPlan, deserializedUserEventDto.User.SubscriptionPlan);
+        Assert.Equal(userEventDto.User.PaymentMethod, deserializedUserEventDto.User.PaymentMethod);
+        Assert.Equal(userEventDto.User.LastPaymentDate, deserializedUserEventDto.User.LastPaymentDate);
+        Assert.Equal(userEventDto.User.TotalOrders, deserializedUserEventDto.User.TotalOrders);
+        Assert.Equal(userEventDto.User.FavoriteCategories, deserializedUserEventDto.User.FavoriteCategories);
+        Assert.Equal(userEventDto.User.Wishlist, deserializedUserEventDto.User.Wishlist);
+        Assert.Equal(userEventDto.User.RecentSearches, deserializedUserEventDto.User.RecentSearches);
+        Assert.Equal(userEventDto.User.CartItems, deserializedUserEventDto.User.CartItems);
+        Assert.Equal(userEventDto.User.LoyaltyPoints, deserializedUserEventDto.User.LoyaltyPoints);
+        Assert.Equal(userEventDto.User.ReferralCode, deserializedUserEventDto.User.ReferralCode);
+        Assert.Equal(userEventDto.User.SocialMedia.Facebook, deserializedUserEventDto.User.SocialMedia.Facebook);
+        Assert.Equal(userEventDto.User.SocialMedia.Twitter, deserializedUserEventDto.User.SocialMedia.Twitter);
+        Assert.Equal(userEventDto.User.SocialMedia.Instagram, deserializedUserEventDto.User.SocialMedia.Instagram);
+        Assert.Equal(userEventDto.User.DeviceInfo.DeviceType, deserializedUserEventDto.User.DeviceInfo.DeviceType);
+        Assert.Equal(userEventDto.User.DeviceInfo.Os, deserializedUserEventDto.User.DeviceInfo.Os);
+        Assert.Equal(userEventDto.User.DeviceInfo.Browser, deserializedUserEventDto.User.DeviceInfo.Browser);
+        Assert.Equal(userEventDto.User.DeviceInfo.IpAddress, deserializedUserEventDto.User.DeviceInfo.IpAddress);
+        Assert.Equal(userEventDto.User.ActivityLog[0].Action, deserializedUserEventDto.User.ActivityLog[0].Action);
+        Assert.Equal(userEventDto.User.ActivityLog[0].Timestamp,
+            deserializedUserEventDto.User.ActivityLog[0].Timestamp);
+        Assert.Equal(userEventDto.User.ActivityLog[1].Action, deserializedUserEventDto.User.ActivityLog[1].Action);
+        Assert.Equal(userEventDto.User.ActivityLog[1].ProductId,
+            deserializedUserEventDto.User.ActivityLog[1].ProductId);
+        Assert.Equal(userEventDto.User.ActivityLog[1].Timestamp,
+            deserializedUserEventDto.User.ActivityLog[1].Timestamp);
+    }
+}
+
+-- Dto/Dto.csproj --
+﻿<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+</Project>
+
+-- Dto/SampleDto.json --
+{
+  "eventId": "12345",
+  "timestamp": "2023-10-01T12:00:00Z",
+  "source": "User Activity System",
+  "message": "User has been imported.",
+  "user": {
+    "userId": "user123",
+    "username": "johndoe",
+    "email": "john.doe@example.com",
+    "firstName": "John",
+    "lastName": "Doe",
+    "dateOfBirth": "1980-01-01",
+    "gender": "Male",
+    "phoneNumber": "+1234567890",
+    "address": {
+      "street": "123 Main St",
+      "city": "Anytown",
+      "state": "CA",
+      "zipCode": "12345",
+      "country": "USA"
+    },
+    "preferences": {
+      "theme": "dark",
+      "language": "en",
+      "notifications": true,
+      "newsletter": false,
+      "timezone": "UTC-8"
+    },
+    "lastLogin": "2023-09-30T10:00:00Z",
+    "accountStatus": "active",
+    "subscriptionPlan": "premium",
+    "paymentMethod": "credit card",
+    "lastPaymentDate": "2023-09-15",
+    "totalOrders": 15,
+    "favoriteCategories": [
+      "electronics",
+      "books",
+      "clothing"
+    ],
+    "wishlist": [
+      "item1",
+      "item2",
+      "item3"
+    ],
+    "recentSearches": [
+      "laptop",
+      "headphones",
+      "smartphone"
+    ],
+    "cartItems": 3,
+    "loyaltyPoints": 500,
+    "referralCode": "REF123",
+    "socialMedia": {
+      "facebook": "facebook.com/johndoe",
+      "twitter": "twitter.com/johndoe",
+      "instagram": "instagram.com/johndoe"
+    },
+    "deviceInfo": {
+      "deviceType": "mobile",
+      "os": "iOS",
+      "browser": "Safari",
+      "ipAddress": "192.168.1.1"
+    },
+    "activityLog": [
+      {
+        "action": "login",
+        "timestamp": "2023-09-30T10:00:00Z"
+      },
+      {
+        "action": "viewProduct",
+        "productId": "prod123",
+        "timestamp": "2023-09-30T10:05:00Z"
+      }
+    ]
+  }
+} 
+
+-- Dto/UserEventDto.cs --
+namespace Dto;
+
+public class UserEventDto
+{
+    public required string EventId { get; set; }
+    public required DateTime Timestamp { get; set; }
+    public required string Source { get; set; }
+    public required string Message { get; set; }
+    public required User User { get; set; }
+}
+
+public class User
+{
+    public required string UserId { get; set; }
+    public required string Username { get; set; }
+    public required string Email { get; set; }
+    public required string FirstName { get; set; }
+    public required string LastName { get; set; }
+    public required DateTime DateOfBirth { get; set; }
+    public DateTime? CreatedAt { get; set; }
+    public required string Gender { get; set; }
+    public required string PhoneNumber { get; set; }
+    public required Address Address { get; set; }
+    public required Preferences Preferences { get; set; }
+    public required DateTime LastLogin { get; set; }
+    public required string AccountStatus { get; set; }
+    public required string SubscriptionPlan { get; set; }
+    public required string PaymentMethod { get; set; }
+    public required DateTime LastPaymentDate { get; set; }
+    public required int TotalOrders { get; set; }
+    public required List<string> FavoriteCategories { get; set; } = new();
+    public required List<string> Wishlist { get; set; } = new();
+    public required List<string> RecentSearches { get; set; } = new();
+    public required int CartItems { get; set; }
+    public required int LoyaltyPoints { get; set; }
+    public required string ReferralCode { get; set; }
+    public required SocialMedia SocialMedia { get; set; }
+    public required DeviceInfo DeviceInfo { get; set; }
+    public required List<ActivityLog> ActivityLog { get; set; } = new();
+}
+
+public class Address
+{
+    public required string Street { get; set; }
+    public required string City { get; set; }
+    public required string State { get; set; }
+    public required string ZipCode { get; set; }
+    public required string Country { get; set; }
+}
+
+public class Preferences
+{
+    public required string Theme { get; set; }
+    public required string Language { get; set; }
+    public required bool Notifications { get; set; }
+    public required bool Newsletter { get; set; }
+    public required string Timezone { get; set; }
+}
+
+public class SocialMedia
+{
+    public required string Facebook { get; set; }
+    public required string Twitter { get; set; }
+    public required string Instagram { get; set; }
+}
+
+public class DeviceInfo
+{
+    public required string DeviceType { get; set; }
+    public required string Os { get; set; }
+    public required string Browser { get; set; }
+    public required string IpAddress { get; set; }
+}
+
+public class ActivityLog
+{
+    public required string Action { get; set; }
+    public required DateTime Timestamp { get; set; }
+    public string? ProductId { get; set; }
+}
+
+-- Processors.Tests/ActivityLogProcessorTests.cs --
+using System.Text.Json;
+
+namespace Processors.Tests;
+
+public class ActivityLogProcessorTests
+{
+    [Fact]
+    public void Process_ValidJson_WritesFormattedActivityLog()
+    {
+        // Arrange
+        var json =
+            """
+            {
+                "eventId": "12345",
+                "timestamp": "2023-10-01T12:00:00Z",
+                "source": "User Activity System",
+                "message": "User has been imported.",
+                "user": {
+                    "userId": "user123",

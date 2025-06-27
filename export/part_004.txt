@@ -1,0 +1,180 @@
+        {
+            var framework = AnalysisService.GetTargetFramework(temp);
+            Assert.Equal("net7.0", framework);
+        }
+        finally
+        {
+            Directory.Delete(temp, true);
+        }
+    }
+
+    [Fact]
+    public async Task AnalyzeUsageAsync_ReturnsUsageCounts()
+    {
+        var service = CreateService();
+        var result = await service.AnalyzeUsageAsync(
+            GetSolutionPath(),
+            typeof(UserEventDto),
+            true);
+
+        var aggregated = result
+            .GroupBy(r => r.Key.Attribute)
+            .ToDictionary(g => g.Key, g => g.Sum(x => x.Value));
+
+        Assert.Equal(2, aggregated[new ClassAndField("Address", "ZipCode")]);
+        Assert.Equal(2, aggregated[new ClassAndField("User", "FavoriteCategories")]);
+        Assert.Equal(2, aggregated[new ClassAndField("ActivityLog", "ProductId")]);
+        Assert.Equal(0, aggregated[new ClassAndField("User", "CreatedAt")]);
+        Assert.Equal(1, aggregated[new ClassAndField("UserEventDto", "EventId")]);
+    }
+}
+
+-- Analyze.Tests/Analyze.Tests.csproj --
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="coverlet.collector">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="Microsoft.NET.Test.Sdk"/>
+    <PackageReference Include="xunit"/>
+    <PackageReference Include="xunit.runner.visualstudio">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit"/>
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Analyze\Analyze.csproj"/>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="Dto">
+      <HintPath>..\Dto\bin\Debug\$(TargetFramework)\Dto.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+
+</Project>
+
+-- Analyze/AnalysisService.cs --
+using System.Reflection;
+using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
+using Microsoft.CodeAnalysis.Host.Mef;
+using Microsoft.CodeAnalysis.Text;
+using Microsoft.Extensions.Logging;
+using System.Xml.Linq;
+
+namespace Analyze;
+
+public class AnalysisService(ILogger<AnalysisService> logger)
+{
+    public Type[] GetDtoAssemblyTypes(string solutionPath)
+    {
+        // Path to the Dto.dll (adjust if needed)
+        var dtoAssemblyPath = GetDtoAssemblyPath(solutionPath);
+        if (!File.Exists(dtoAssemblyPath))
+        {
+            throw new FileNotFoundException($"Dto.dll not found at {dtoAssemblyPath}. Please build the Dto project first.");
+        }
+
+        var assembly = Assembly.LoadFrom(dtoAssemblyPath);
+        return assembly.GetTypes()
+            .Where(t => t is { IsClass: true, Namespace: "Dto" })
+            .ToArray();
+    }
+
+    private static string GetDtoAssemblyPath(string solutionPath)
+    {
+        var solutionDir = Path.GetDirectoryName(solutionPath)!;
+        var targetFramework = GetTargetFramework(solutionDir);
+        var dtoAssemblyPath = Path.Combine(solutionDir, "Dto", "bin", "Debug", targetFramework, "Dto.dll");
+        return dtoAssemblyPath;
+    }
+
+    public static string GetTargetFramework(string solutionDir)
+    {
+        var propsPath = Path.Combine(solutionDir, "Directory.Build.props");
+        if (!File.Exists(propsPath))
+        {
+            return "net8.0";
+        }
+
+        var doc = XDocument.Load(propsPath);
+        var tfElement = doc.Descendants("TargetFramework").FirstOrDefault();
+        return tfElement?.Value ?? "net8.0";
+    }
+
+    public async Task<Dictionary<UsageKey, int>> AnalyzeUsageAsync(string solutionPath, Type selectedClass, bool shouldSkipTestProjects)
+    {
+        logger.LogDebug("Starting analysis for class: {SelectedClassFullName}", selectedClass.FullName);
+        var propertyUsage = new Dictionary<UsageKey, int>();
+
+        // Find property references
+        var deepProperties = GetDeepProperties(selectedClass);
+        logger.LogDebug(
+            "Found {Count} deep properties in {CurrentTypeFullName}",
+            deepProperties.Count,
+            selectedClass.FullName);
+
+        var solution = LoadSolutionWorkspace(solutionPath);
+        
+        foreach (var project in solution.Projects)
+        {
+            // Skip Test project
+            if (shouldSkipTestProjects && project.Name.EndsWith("Tests"))
+            {
+                logger.LogInformation("Skipping test project {ProjectName}.", project.Name);
+                continue;
+            }
+                
+            // Skip Analyze project
+            if (project.Name is "Analyze" or "Dto")
+            {
+                logger.LogInformation("Skipping {ProjectName} project.", project.Name);
+                continue;
+            }
+
+            var compilation = await SetupProjectCompilation(project, solutionPath);
+            if (compilation == null)
+            {
+                continue;
+            }
+
+            await AnalyzeProjectDocuments(project, compilation, deepProperties, propertyUsage, selectedClass);
+        }
+
+        // add unused properties from deepProperties:
+        foreach (var deepProperty in deepProperties)
+        {
+            var attribute = new ClassAndField(deepProperty.Type.Name, deepProperty.Property.Name);
+            
+            if (propertyUsage.Any(k => k.Key.Attribute == attribute))
+            {
+                continue; // already exists
+            }
+            
+            UsageKey key = new("N/A", attribute);
+            propertyUsage.TryAdd(key, 0);
+        }
+        
+        return propertyUsage;
+    }
+
+    private async Task<Compilation?> SetupProjectCompilation(Project project, string solutionPath)
+    {
+        var dtoAssemblyPath = GetDtoAssemblyPath(solutionPath);
+        var coreAssemblyPath = Path.GetDirectoryName(typeof(object).Assembly.Location)!;
+        return (await project.GetCompilationAsync())?
+            .AddReferences([
+                MetadataReference.CreateFromFile(typeof(object).Assembly.Location), // System.Private.CoreLib
+                MetadataReference.CreateFromFile(Path.Combine(coreAssemblyPath, "System.Runtime.dll")),

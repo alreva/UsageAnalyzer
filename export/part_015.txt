@@ -1,0 +1,225 @@
+    protected static readonly JsonSerializerOptions JsonOptions = new()
+    {
+        PropertyNameCaseInsensitive = true
+    };
+
+    public abstract void Process(string jsonInput, TextWriter output);
+
+    protected TDto? Deserialize(string jsonInput)
+    {
+        try
+        {
+            return JsonSerializer.Deserialize<TDto>(jsonInput, JsonOptions);
+        }
+        catch (JsonException ex)
+        {
+            throw new JsonException($"Failed to deserialize JSON input: {ex.Message}", ex);
+        }
+    }
+
+    protected void WriteNoDataMessage(TextWriter output, string dataType)
+    {
+        output.WriteLine($"No {dataType} found.");
+    }
+}
+
+-- Processors/IProcessor.cs --
+namespace Processors;
+
+public interface IProcessor<TDto>
+{
+    void Process(string jsonInput, TextWriter output);
+}
+
+-- Processors/Processors.csproj --
+﻿<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="Dto">
+      <HintPath>..\Dto\bin\Debug\$(TargetFramework)\Dto.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+
+</Project>
+
+-- Processors/UserAddressProcessor.cs --
+using Dto;
+
+namespace Processors;
+
+public class UserAddressProcessor : BaseProcessor<UserEventDto>
+{
+    public override void Process(string jsonInput, TextWriter output)
+    {
+        var userEventDto = Deserialize(jsonInput);
+        if (userEventDto?.User?.Address != null)
+        {
+            var address = userEventDto.User.Address;
+            output.WriteLine("User Address:");
+            output.WriteLine($"Street: {address.Street}");
+            output.WriteLine($"City: {address.City}");
+            output.WriteLine($"State: {address.State}");
+            output.WriteLine($"Zip Code: {address.ZipCode}");
+            output.WriteLine($"Zip Code: {address.ZipCode}");
+            output.WriteLine($"Country: {address.Country}");
+        }
+        else
+        {
+            WriteNoDataMessage(output, "user address");
+        }
+    }
+}
+
+-- Processors/UserDeviceInfoProcessor.cs --
+using Dto;
+
+namespace Processors;
+
+public class UserDeviceInfoProcessor : BaseProcessor<UserEventDto>
+{
+    public override void Process(string jsonInput, TextWriter output)
+    {
+        var userEventDto = Deserialize(jsonInput);
+        if (userEventDto?.User?.DeviceInfo != null)
+        {
+            var deviceInfo = userEventDto.User.DeviceInfo;
+            output.WriteLine("Device Information:");
+            output.WriteLine($"Device Type: {deviceInfo.DeviceType}");
+            output.WriteLine($"Operating System: {deviceInfo.Os}");
+            output.WriteLine($"Browser: {deviceInfo.Browser}");
+            output.WriteLine($"IP Address: {deviceInfo.IpAddress}");
+        }
+        else
+        {
+            WriteNoDataMessage(output, "device information");
+        }
+    }
+} 
+
+-- Processors/UserEventProcessor.cs --
+using Dto;
+
+namespace Processors;
+
+public class UserEventProcessor : BaseProcessor<UserEventDto>
+{
+    public override void Process(string jsonInput, TextWriter output)
+    {
+        var userEventDto = Deserialize(jsonInput);
+        if (userEventDto != null)
+        {
+            output.WriteLine("Event Information:");
+            output.WriteLine($"Event ID: {userEventDto.EventId}");
+            output.WriteLine($"Timestamp: {userEventDto.Timestamp:yyyy-MM-dd HH:mm:ss}");
+            output.WriteLine($"Source: {userEventDto.Source}");
+            output.WriteLine($"Message: {userEventDto.Message}");
+        }
+        else
+        {
+            WriteNoDataMessage(output, "event information");
+        }
+    }
+} 
+
+-- Processors/UserPreferencesProcessor.cs --
+using Dto;
+
+namespace Processors;
+
+public class UserPreferencesProcessor : BaseProcessor<UserEventDto>
+{
+    public override void Process(string jsonInput, TextWriter output)
+    {
+        var userEventDto = Deserialize(jsonInput);
+        if (userEventDto?.User?.Preferences != null)
+        {
+            var prefs = userEventDto.User.Preferences;
+            output.WriteLine("User Preferences:");
+            output.WriteLine($"Theme: {prefs.Theme}");
+            output.WriteLine($"Language: {prefs.Language}");
+            output.WriteLine($"Notifications: {prefs.Notifications}");
+            output.WriteLine($"Newsletter: {prefs.Newsletter}");
+            output.WriteLine($"Timezone: {prefs.Timezone}");
+        }
+        else
+        {
+            WriteNoDataMessage(output, "user preferences");
+        }
+    }
+}
+
+-- Processors/UserProcessor.cs --
+using Dto;
+
+namespace Processors;
+
+public class UserProcessor : BaseProcessor<UserEventDto>
+{
+    public override void Process(string jsonInput, TextWriter output)
+    {
+        var userEventDto = Deserialize(jsonInput);
+        if (userEventDto?.User != null)
+        {
+            var user = userEventDto.User;
+            output.WriteLine("User Information:");
+            output.WriteLine($"User ID: {user.UserId}");
+            output.WriteLine($"Username: {user.Username}");
+            output.WriteLine($"Email: {user.Email}");
+            output.WriteLine($"Name: {user.FirstName} {user.LastName}");
+            output.WriteLine($"Date of Birth: {user.DateOfBirth:yyyy-MM-dd}");
+            // if (user.CreatedAt.HasValue)
+            // {
+            //     output.WriteLine($"Created At: {user.CreatedAt.Value:yyyy-MM-dd HH:mm:ss}");
+            // }
+            output.WriteLine($"Gender: {user.Gender}");
+            output.WriteLine($"Phone Number: {user.PhoneNumber}");
+            output.WriteLine($"Last Login: {user.LastLogin:yyyy-MM-dd HH:mm:ss}");
+            output.WriteLine($"Account Status: {user.AccountStatus}");
+            output.WriteLine($"Subscription Plan: {user.SubscriptionPlan}");
+            output.WriteLine($"Payment Method: {user.PaymentMethod}");
+            output.WriteLine($"Last Payment Date: {user.LastPaymentDate:yyyy-MM-dd}");
+            output.WriteLine($"Total Orders: {user.TotalOrders}");
+            output.WriteLine($"Cart Items: {user.CartItems}");
+            output.WriteLine($"Loyalty Points: {user.LoyaltyPoints}");
+            output.WriteLine($"Referral Code: {user.ReferralCode}");
+            
+            if (user.FavoriteCategories.Any())
+            {
+                output.WriteLine("\nFavorite Categories:");
+                foreach (var category in user.FavoriteCategories)
+                {
+                    output.WriteLine($"- {category}");
+                }
+            }
+            
+            if (user.Wishlist.Any())
+            {
+                output.WriteLine("\nWishlist Items:");
+                foreach (var item in user.Wishlist)
+                {
+                    output.WriteLine($"- {item}");
+                }
+            }
+            
+            if (user.RecentSearches.Any())
+            {
+                output.WriteLine("\nRecent Searches:");
+                foreach (var search in user.RecentSearches)
+                {
+                    output.WriteLine($"- {search}");
+                }
+            }
+        }
+        else
+        {
+            WriteNoDataMessage(output, "user information");
+        }
+    }
+} 
+
+-- Processors/UserSocialMediaProcessor.cs --
+using Dto;
+
