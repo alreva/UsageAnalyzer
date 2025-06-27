@@ -1,6 +1,7 @@
 using Analyze;
 using Dto;
 using Microsoft.Extensions.Logging;
+using System.IO;
 
 namespace Analyze.Tests;
 
@@ -23,7 +24,11 @@ public class AnalysisServiceTests
     public void GetDtoAssemblyTypes_ReturnsDtoTypes()
     {
         var service = CreateService();
-        var types = service.GetDtoAssemblyTypes(GetSolutionPath());
+        var solutionPath = GetSolutionPath();
+        var solutionDir = Path.GetDirectoryName(solutionPath)!;
+        var tf = AnalysisService.GetTargetFramework(solutionDir);
+        var dtoAssemblyPath = Path.Combine(solutionDir, "Dto", "bin", "Debug", tf, "Dto.dll");
+        var types = service.GetDtoAssemblyTypes(dtoAssemblyPath);
         Assert.Contains(types, t => t.Name == nameof(UserEventDto));
     }
 
@@ -100,10 +105,15 @@ public class AnalysisServiceTests
     public async Task AnalyzeUsageAsync_ReturnsUsageCounts()
     {
         var service = CreateService();
+        var solutionPath = GetSolutionPath();
+        var solutionDir = Path.GetDirectoryName(solutionPath)!;
+        var tf = AnalysisService.GetTargetFramework(solutionDir);
+        var dtoAssemblyPath = Path.Combine(solutionDir, "Dto", "bin", "Debug", tf, "Dto.dll");
         var result = await service.AnalyzeUsageAsync(
-            GetSolutionPath(),
+            solutionPath,
             typeof(UserEventDto),
-            true);
+            true,
+            dtoAssemblyPath);
 
         var aggregated = result
             .GroupBy(r => r.Key.Attribute)
