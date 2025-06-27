@@ -12,7 +12,13 @@ The solution consists of the following projects:
 - **Processors**: Contains processors for handling different types of user data
 - **Dto.Tests**: Unit tests for the DTO project
 - **Processors.Tests**: Unit tests for the Processors project
-- **Analyze**: Main application project for analyzing user data
+- **DtoUsageAnalyzer**: Library that implements the Roslyn-based analysis service
+- **Analyze**: Main application project for analyzing user data using `DtoUsageAnalyzer`
+
+### DtoUsageAnalyzer Library
+
+`DtoUsageAnalyzer` exposes an `AnalysisService` that performs Roslyn-based code analysis. By referencing this
+library, other applications and unit tests can run the same usage analysis logic as the console app.
 
 ## Getting Started
 
