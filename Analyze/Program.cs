@@ -1,79 +1,83 @@
-﻿using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
-using Spectre.Console;
-using System.IO;
+﻿// <copyright file="Program.cs" company="PlaceholderCompany">
+// Copyright (c) PlaceholderCompany. All rights reserved.
+// </copyright>
 
 namespace Analyze;
 
+using System.IO;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+using Spectre.Console;
+
 public class Program
 {
-    public static async Task Main(string[] args)
+  public static async Task Main(string[] args)
+  {
+    var configuration = new ConfigurationBuilder()
+        .SetBasePath(Directory.GetCurrentDirectory())
+        .AddJsonFile("appsettings.json", false)
+        .Build();
+
+    var services = new ServiceCollection();
+    ConfigureServices(services, configuration);
+    var serviceProvider = services.BuildServiceProvider();
+
+    var logger = serviceProvider.GetRequiredService<ILogger<Program>>();
+    var analysisService = serviceProvider.GetRequiredService<AnalysisService>();
+    var consoleUi = new ConsoleUi(logger);
+
+    try
     {
-        var configuration = new ConfigurationBuilder()
-            .SetBasePath(Directory.GetCurrentDirectory())
-            .AddJsonFile("appsettings.json", false)
-            .Build();
+      consoleUi.DisplayWelcome();
+      var solutionPath = consoleUi.FindSolutionFile();
 
-        var services = new ServiceCollection();
-        ConfigureServices(services, configuration);
-        var serviceProvider = services.BuildServiceProvider();
+      // Get all DTO classes
+      var solutionDir = Path.GetDirectoryName(solutionPath)!;
+      var tf = AnalysisService.GetTargetFramework(solutionDir);
+      var dtoAssemblyPath = Path.Combine(solutionDir, "Dto", "bin", "Debug", tf, "Dto.dll");
+      var dtoClasses = analysisService.GetDtoAssemblyTypes(dtoAssemblyPath).ToList();
+      if (!dtoClasses.Any())
+      {
+        AnsiConsole.MarkupLine("[red]No DTO classes found in the Dto project.[/]");
+        return;
+      }
 
-        var logger = serviceProvider.GetRequiredService<ILogger<Program>>();
-        var analysisService = serviceProvider.GetRequiredService<AnalysisService>();
-        var consoleUi = new ConsoleUi(logger);
+      // Let user select a class
+      var selectedClass = consoleUi.PromptForClassSelection(dtoClasses);
+      if (selectedClass == null)
+      {
+        return;
+      }
 
-        try
-        {
-            consoleUi.DisplayWelcome();
-            var solutionPath = consoleUi.FindSolutionFile();
+      // Ask user for property usage output format
+      var propertyUsageFormat = consoleUi.PromptForPropertyUsageFormat();
 
-            // Get all DTO classes
-            var solutionDir = Path.GetDirectoryName(solutionPath)!;
-            var tf = AnalysisService.GetTargetFramework(solutionDir);
-            var dtoAssemblyPath = Path.Combine(solutionDir, "Dto", "bin", "Debug", tf, "Dto.dll");
-            var dtoClasses = analysisService.GetDtoAssemblyTypes(dtoAssemblyPath).ToList();
-            if (!dtoClasses.Any())
-            {
-                AnsiConsole.MarkupLine("[red]No DTO classes found in the Dto project.[/]");
-                return;
-            }
+      var skipTestProjects = consoleUi.PromptToSkipTestProjects();
 
-            // Let user select a class
-            var selectedClass = consoleUi.PromptForClassSelection(dtoClasses);
-            if (selectedClass == null)
-            {
-                return;
-            }
+      consoleUi.DisplayAnalysisStart(selectedClass);
 
-            // Ask user for property usage output format
-            var propertyUsageFormat = consoleUi.PromptForPropertyUsageFormat();
+      // Analyze usage
+      var propertyUsage = await analysisService
+          .AnalyzeUsageAsync(solutionPath, selectedClass, skipTestProjects);
 
-            var skipTestProjects = consoleUi.PromptToSkipTestProjects();
-
-            consoleUi.DisplayAnalysisStart(selectedClass);
-
-            // Analyze usage
-            var propertyUsage = await analysisService
-                .AnalyzeUsageAsync(solutionPath, selectedClass, skipTestProjects);
-
-            // Display results
-            consoleUi.DisplayResults(propertyUsage, selectedClass, propertyUsageFormat);
-        }
-        catch (Exception ex)
-        {
-            consoleUi.DisplayError(ex);
-        }
+      // Display results
+      consoleUi.DisplayResults(propertyUsage, selectedClass, propertyUsageFormat);
     }
-
-    private static void ConfigureServices(IServiceCollection services, IConfiguration configuration)
+    catch (Exception ex)
     {
-        services.AddLogging(builder =>
-        {
-            builder.AddConsole();
-            builder.AddConfiguration(configuration.GetSection("Logging"));
-        });
-
-        services.AddSingleton<AnalysisService>();
+      consoleUi.DisplayError(ex);
     }
+  }
+
+  private static void ConfigureServices(IServiceCollection services, IConfiguration configuration)
+  {
+    services.AddLogging(builder =>
+    {
+      builder.AddConsole();
+      builder.AddConfiguration(configuration.GetSection("Logging"));
+    });
+
+    services.AddSingleton<AnalysisService>();
+  }
 }

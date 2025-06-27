@@ -1,15 +1,19 @@
-using System.Text.Json;
+// <copyright file="ActivityLogProcessorTests.cs" company="PlaceholderCompany">
+// Copyright (c) PlaceholderCompany. All rights reserved.
+// </copyright>
 
 namespace Processors.Tests;
 
+using System.Text.Json;
+
 public class ActivityLogProcessorTests
 {
-    [Fact]
-    public void Process_ValidJson_WritesFormattedActivityLog()
-    {
-        // Arrange
-        var json =
-            """
+  [Fact]
+  public void Process_ValidJson_WritesFormattedActivityLog()
+  {
+    // Arrange
+    var json =
+        """
             {
                 "eventId": "12345",
                 "timestamp": "2023-10-01T12:00:00Z",
@@ -75,26 +79,26 @@ public class ActivityLogProcessorTests
                 }
             }
             """;
-        var processor = new ActivityLogProcessor();
-        var output = new StringWriter();
+    var processor = new ActivityLogProcessor();
+    var output = new StringWriter();
 
-        // Act
-        processor.Process(json, output);
-        var result = output.ToString();
+    // Act
+    processor.Process(json, output);
+    var result = output.ToString();
 
-        // Assert
-        Assert.Contains("User Activity Log:", result);
-        Assert.Contains("Action: viewProduct", result);
-        Assert.Contains("Product ID: prod123", result);
-        Assert.Contains("Action: login", result);
-    }
+    // Assert
+    Assert.Contains("User Activity Log:", result);
+    Assert.Contains("Action: viewProduct", result);
+    Assert.Contains("Product ID: prod123", result);
+    Assert.Contains("Action: login", result);
+  }
 
-    [Fact]
-    public void Process_EmptyActivityLog_WritesNoDataMessage()
-    {
-        // Arrange
-        var json =
-            """
+  [Fact]
+  public void Process_EmptyActivityLog_WritesNoDataMessage()
+  {
+    // Arrange
+    var json =
+        """
             {
                 "eventId": "12345",
                 "timestamp": "2023-10-01T12:00:00Z",
@@ -150,14 +154,14 @@ public class ActivityLogProcessorTests
                 }
             }
             """;
-        var processor = new ActivityLogProcessor();
-        var output = new StringWriter();
+    var processor = new ActivityLogProcessor();
+    var output = new StringWriter();
 
-        // Act
-        processor.Process(json, output);
-        var result = output.ToString();
+    // Act
+    processor.Process(json, output);
+    var result = output.ToString();
 
-        // Assert
-        Assert.Contains("No activity log found.", result);
-    }
+    // Assert
+    Assert.Contains("No activity log found.", result);
+  }
 }

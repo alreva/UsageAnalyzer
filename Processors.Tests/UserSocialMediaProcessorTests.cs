@@ -1,15 +1,19 @@
-using System.Text.Json;
+// <copyright file="UserSocialMediaProcessorTests.cs" company="PlaceholderCompany">
+// Copyright (c) PlaceholderCompany. All rights reserved.
+// </copyright>
 
 namespace Processors.Tests;
 
+using System.Text.Json;
+
 public class UserSocialMediaProcessorTests
 {
-    [Fact]
-    public void Process_ValidJson_WritesFormattedSocialMedia()
-    {
-        // Arrange
-        var json =
-            """
+  [Fact]
+  public void Process_ValidJson_WritesFormattedSocialMedia()
+  {
+    // Arrange
+    var json =
+        """
             {
                 "eventId": "12345",
                 "timestamp": "2023-10-01T12:00:00Z",
@@ -71,26 +75,26 @@ public class UserSocialMediaProcessorTests
             }
             """;
 
-        var processor = new UserSocialMediaProcessor();
-        var output = new StringWriter();
+    var processor = new UserSocialMediaProcessor();
+    var output = new StringWriter();
 
-        // Act
-        processor.Process(json, output);
+    // Act
+    processor.Process(json, output);
 
-        // Assert
-        var result = output.ToString();
-        Assert.Contains("Social Media Profiles:", result);
-        Assert.Contains("Facebook: facebook.com/johndoe", result);
-        Assert.Contains("Twitter: twitter.com/johndoe", result);
-        Assert.Contains("Instagram: instagram.com/johndoe", result);
-    }
+    // Assert
+    var result = output.ToString();
+    Assert.Contains("Social Media Profiles:", result);
+    Assert.Contains("Facebook: facebook.com/johndoe", result);
+    Assert.Contains("Twitter: twitter.com/johndoe", result);
+    Assert.Contains("Instagram: instagram.com/johndoe", result);
+  }
 
-    [Fact]
-    public void Process_NullSocialMedia_WritesNoDataMessage()
-    {
-        // Arrange
-        var json =
-            """
+  [Fact]
+  public void Process_NullSocialMedia_WritesNoDataMessage()
+  {
+    // Arrange
+    var json =
+        """
             {
                 "eventId": "12345",
                 "timestamp": "2023-10-01T12:00:00Z",
@@ -148,14 +152,14 @@ public class UserSocialMediaProcessorTests
             }
             """;
 
-        var processor = new UserSocialMediaProcessor();
-        var output = new StringWriter();
+    var processor = new UserSocialMediaProcessor();
+    var output = new StringWriter();
 
-        // Act
-        processor.Process(json, output);
+    // Act
+    processor.Process(json, output);
 
-        // Assert
-        var result = output.ToString();
-        Assert.Contains("No social media profiles found.", result);
-    }
-} 
+    // Assert
+    var result = output.ToString();
+    Assert.Contains("No social media profiles found.", result);
+  }
+}

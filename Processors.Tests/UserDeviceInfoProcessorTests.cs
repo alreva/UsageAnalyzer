@@ -1,15 +1,19 @@
-using System.Text.Json;
+// <copyright file="UserDeviceInfoProcessorTests.cs" company="PlaceholderCompany">
+// Copyright (c) PlaceholderCompany. All rights reserved.
+// </copyright>
 
 namespace Processors.Tests;
 
+using System.Text.Json;
+
 public class UserDeviceInfoProcessorTests
 {
-    [Fact]
-    public void Process_ValidJson_WritesFormattedDeviceInfo()
-    {
-        // Arrange
-        var json =
-            """
+  [Fact]
+  public void Process_ValidJson_WritesFormattedDeviceInfo()
+  {
+    // Arrange
+    var json =
+        """
             {
                 "eventId": "12345",
                 "timestamp": "2023-10-01T12:00:00Z",
@@ -71,27 +75,27 @@ public class UserDeviceInfoProcessorTests
             }
             """;
 
-        var processor = new UserDeviceInfoProcessor();
-        var output = new StringWriter();
+    var processor = new UserDeviceInfoProcessor();
+    var output = new StringWriter();
 
-        // Act
-        processor.Process(json, output);
+    // Act
+    processor.Process(json, output);
 
-        // Assert
-        var result = output.ToString();
-        Assert.Contains("Device Information:", result);
-        Assert.Contains("Device Type: mobile", result);
-        Assert.Contains("Operating System: iOS", result);
-        Assert.Contains("Browser: Safari", result);
-        Assert.Contains("IP Address: 192.168.1.1", result);
-    }
+    // Assert
+    var result = output.ToString();
+    Assert.Contains("Device Information:", result);
+    Assert.Contains("Device Type: mobile", result);
+    Assert.Contains("Operating System: iOS", result);
+    Assert.Contains("Browser: Safari", result);
+    Assert.Contains("IP Address: 192.168.1.1", result);
+  }
 
-    [Fact]
-    public void Process_NullDeviceInfo_WritesNoDataMessage()
-    {
-        // Arrange
-        var json =
-            """
+  [Fact]
+  public void Process_NullDeviceInfo_WritesNoDataMessage()
+  {
+    // Arrange
+    var json =
+        """
             {
                 "eventId": "12345",
                 "timestamp": "2023-10-01T12:00:00Z",
@@ -148,14 +152,14 @@ public class UserDeviceInfoProcessorTests
             }
             """;
 
-        var processor = new UserDeviceInfoProcessor();
-        var output = new StringWriter();
+    var processor = new UserDeviceInfoProcessor();
+    var output = new StringWriter();
 
-        // Act
-        processor.Process(json, output);
+    // Act
+    processor.Process(json, output);
 
-        // Assert
-        var result = output.ToString();
-        Assert.Contains("No device information found.", result);
-    }
-} 
+    // Assert
+    var result = output.ToString();
+    Assert.Contains("No device information found.", result);
+  }
+}
