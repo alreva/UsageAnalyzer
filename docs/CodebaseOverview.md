@@ -8,7 +8,8 @@ The solution contains several projects:
 
 - **Dto** – Defines the data transfer objects (DTOs) used to deserialize user event JSON.
 - **Processors** – Includes small processors that operate on DTOs. Each processor reads JSON input, deserializes it, and writes formatted output.
-- **Analyze** – A command-line tool that analyzes how DTO classes and their properties are used across a solution.
+- **DtoUsageAnalyzer** – Library containing the `AnalysisService` used for Roslyn-based analysis.
+- **Analyze** – A command-line tool that uses `DtoUsageAnalyzer` to analyze how DTO classes and their properties are used across a solution.
 - **Dto.Tests** – Unit tests for the DTO project.
 - **Processors.Tests** – Unit tests for the processor components.
 
@@ -34,7 +35,7 @@ The `Analyze` project is a console application. It loads a solution, locates DTO
 ## Tips for New Contributors
 
 - Explore the processors under `Processors/` to understand their structure.
-- Review `Analyze/AnalysisService.cs` to see how Roslyn is used for static analysis.
+- Review `DtoUsageAnalyzer/AnalysisService.cs` to see how Roslyn is used for static analysis.
 - Run the command-line tool with a real solution to view usage output.
 - Check the unit tests for examples of how processors and DTOs are validated.
 
