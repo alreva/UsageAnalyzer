@@ -103,16 +103,16 @@ public class AnalysisService(ILogger<AnalysisService> logger)
     {
         var coreAssemblyPath = Path.GetDirectoryName(typeof(object).Assembly.Location)!;
         return (await project.GetCompilationAsync())?
-            .AddReferences([
-                MetadataReference.CreateFromFile(typeof(object).Assembly.Location), // System.Private.CoreLib
+            .AddReferences(
+                MetadataReference.CreateFromFile(typeof(object).Assembly.Location),
                 MetadataReference.CreateFromFile(Path.Combine(coreAssemblyPath, "System.Runtime.dll")),
                 MetadataReference.CreateFromFile(Path.Combine(coreAssemblyPath, "System.Collections.dll")),
                 MetadataReference.CreateFromFile(Path.Combine(coreAssemblyPath, "System.Console.dll")),
-                MetadataReference.CreateFromFile(typeof(List<>).Assembly.Location), // System.Collections.Generic
-                MetadataReference.CreateFromFile(typeof(Enumerable).Assembly.Location), // System.Linq
-                MetadataReference.CreateFromFile(typeof(Console).Assembly.Location), // System.Console
+                MetadataReference.CreateFromFile(typeof(List<>).Assembly.Location),
+                MetadataReference.CreateFromFile(typeof(Enumerable).Assembly.Location),
+                MetadataReference.CreateFromFile(typeof(Console).Assembly.Location),
                 MetadataReference.CreateFromFile(dtoAssemblyPath)
-            ]);
+            );
     }
 
     private Solution LoadSolutionWorkspace(string solutionPath)
