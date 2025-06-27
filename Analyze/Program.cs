@@ -55,7 +55,7 @@ public class Program
 
             // Analyze usage
             var propertyUsage = await analysisService
-                .AnalyzeUsageAsync(solutionPath, selectedClass, skipTestProjects, dtoAssemblyPath);
+                .AnalyzeUsageAsync(solutionPath, selectedClass, skipTestProjects);
 
             // Display results
             consoleUi.DisplayResults(propertyUsage, selectedClass, propertyUsageFormat);

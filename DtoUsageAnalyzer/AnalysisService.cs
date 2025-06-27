@@ -42,8 +42,7 @@ public class AnalysisService(ILogger<AnalysisService> logger)
     public async Task<Dictionary<UsageKey, int>> AnalyzeUsageAsync(
         string solutionPath,
         Type selectedClass,
-        bool shouldSkipTestProjects,
-        string dtoAssemblyPath)
+        bool shouldSkipTestProjects)
     {
         logger.LogDebug("Starting analysis for class: {SelectedClassFullName}", selectedClass.FullName);
         var propertyUsage = new Dictionary<UsageKey, int>();
@@ -73,7 +72,7 @@ public class AnalysisService(ILogger<AnalysisService> logger)
                 continue;
             }
 
-            var compilation = await SetupProjectCompilation(project, dtoAssemblyPath);
+            var compilation = await SetupProjectCompilation(project, selectedClass.Assembly.Location);
             if (compilation == null)
             {
                 continue;
@@ -99,7 +98,7 @@ public class AnalysisService(ILogger<AnalysisService> logger)
         return propertyUsage;
     }
 
-    private async Task<Compilation?> SetupProjectCompilation(Project project, string dtoAssemblyPath)
+    private async Task<Compilation?> SetupProjectCompilation(Project project, string assemblyPath)
     {
         var coreAssemblyPath = Path.GetDirectoryName(typeof(object).Assembly.Location)!;
         return (await project.GetCompilationAsync())?
@@ -111,7 +110,7 @@ public class AnalysisService(ILogger<AnalysisService> logger)
                 MetadataReference.CreateFromFile(typeof(List<>).Assembly.Location),
                 MetadataReference.CreateFromFile(typeof(Enumerable).Assembly.Location),
                 MetadataReference.CreateFromFile(typeof(Console).Assembly.Location),
-                MetadataReference.CreateFromFile(dtoAssemblyPath)
+                MetadataReference.CreateFromFile(assemblyPath)
             );
     }
 
