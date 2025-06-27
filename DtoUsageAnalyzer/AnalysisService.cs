@@ -11,10 +11,9 @@ namespace Analyze;
 
 public class AnalysisService(ILogger<AnalysisService> logger)
 {
-    public Type[] GetDtoAssemblyTypes(string solutionPath)
+    public Type[] GetDtoAssemblyTypes(string dtoAssemblyPath)
     {
         // Path to the Dto.dll (adjust if needed)
-        var dtoAssemblyPath = GetDtoAssemblyPath(solutionPath);
         if (!File.Exists(dtoAssemblyPath))
         {
             throw new FileNotFoundException($"Dto.dll not found at {dtoAssemblyPath}. Please build the Dto project first.");
@@ -26,13 +25,6 @@ public class AnalysisService(ILogger<AnalysisService> logger)
             .ToArray();
     }
 
-    private static string GetDtoAssemblyPath(string solutionPath)
-    {
-        var solutionDir = Path.GetDirectoryName(solutionPath)!;
-        var targetFramework = GetTargetFramework(solutionDir);
-        var dtoAssemblyPath = Path.Combine(solutionDir, "Dto", "bin", "Debug", targetFramework, "Dto.dll");
-        return dtoAssemblyPath;
-    }
 
     public static string GetTargetFramework(string solutionDir)
     {
@@ -47,7 +39,11 @@ public class AnalysisService(ILogger<AnalysisService> logger)
         return tfElement?.Value ?? "net8.0";
     }
 
-    public async Task<Dictionary<UsageKey, int>> AnalyzeUsageAsync(string solutionPath, Type selectedClass, bool shouldSkipTestProjects)
+    public async Task<Dictionary<UsageKey, int>> AnalyzeUsageAsync(
+        string solutionPath,
+        Type selectedClass,
+        bool shouldSkipTestProjects,
+        string dtoAssemblyPath)
     {
         logger.LogDebug("Starting analysis for class: {SelectedClassFullName}", selectedClass.FullName);
         var propertyUsage = new Dictionary<UsageKey, int>();
@@ -77,7 +73,7 @@ public class AnalysisService(ILogger<AnalysisService> logger)
                 continue;
             }
 
-            var compilation = await SetupProjectCompilation(project, solutionPath);
+            var compilation = await SetupProjectCompilation(project, dtoAssemblyPath);
             if (compilation == null)
             {
                 continue;
@@ -103,9 +99,8 @@ public class AnalysisService(ILogger<AnalysisService> logger)
         return propertyUsage;
     }
 
-    private async Task<Compilation?> SetupProjectCompilation(Project project, string solutionPath)
+    private async Task<Compilation?> SetupProjectCompilation(Project project, string dtoAssemblyPath)
     {
-        var dtoAssemblyPath = GetDtoAssemblyPath(solutionPath);
         var coreAssemblyPath = Path.GetDirectoryName(typeof(object).Assembly.Location)!;
         return (await project.GetCompilationAsync())?
             .AddReferences([
