@@ -107,13 +107,10 @@ public class AnalysisServiceTests
         var service = CreateService();
         var solutionPath = GetSolutionPath();
         var solutionDir = Path.GetDirectoryName(solutionPath)!;
-        var tf = AnalysisService.GetTargetFramework(solutionDir);
-        var dtoAssemblyPath = Path.Combine(solutionDir, "Dto", "bin", "Debug", tf, "Dto.dll");
         var result = await service.AnalyzeUsageAsync(
             solutionPath,
             typeof(UserEventDto),
-            true,
-            dtoAssemblyPath);
+            true);
 
         var aggregated = result
             .GroupBy(r => r.Key.Attribute)
