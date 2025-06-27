@@ -1,3 +1,7 @@
+// <copyright file="ClassAndField.cs" company="PlaceholderCompany">
+// Copyright (c) PlaceholderCompany. All rights reserved.
+// </copyright>
+
 namespace Analyze;
 
 public record ClassAndField(string ClassName, string FieldName) : IComparable<ClassAndField>
@@ -14,12 +18,12 @@ public record ClassAndField(string ClassName, string FieldName) : IComparable<Cl
             return 1;
         }
 
-        var classNameComparison = string.Compare(ClassName, other.ClassName, StringComparison.Ordinal);
+        var classNameComparison = string.Compare(this.ClassName, other.ClassName, StringComparison.Ordinal);
         if (classNameComparison != 0)
         {
             return classNameComparison;
         }
 
-        return string.Compare(FieldName, other.FieldName, StringComparison.Ordinal);
+        return string.Compare(this.FieldName, other.FieldName, StringComparison.Ordinal);
     }
 }

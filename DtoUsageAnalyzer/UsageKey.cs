@@ -1,3 +1,7 @@
+// <copyright file="UsageKey.cs" company="PlaceholderCompany">
+// Copyright (c) PlaceholderCompany. All rights reserved.
+// </copyright>
+
 namespace Analyze;
 
 public record UsageKey(string FilePath, ClassAndField Attribute) : IComparable<UsageKey>
@@ -14,12 +18,12 @@ public record UsageKey(string FilePath, ClassAndField Attribute) : IComparable<U
             return 1;
         }
 
-        var filePathComparison = string.Compare(FilePath, other.FilePath, StringComparison.Ordinal);
+        var filePathComparison = string.Compare(this.FilePath, other.FilePath, StringComparison.Ordinal);
         if (filePathComparison != 0)
         {
             return filePathComparison;
         }
 
-        return Attribute.CompareTo(other.Attribute);
+        return this.Attribute.CompareTo(other.Attribute);
     }
 }
