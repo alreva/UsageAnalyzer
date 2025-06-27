@@ -1,15 +1,19 @@
-using System.Text.Json;
+// <copyright file="UserAddressProcessorTests.cs" company="PlaceholderCompany">
+// Copyright (c) PlaceholderCompany. All rights reserved.
+// </copyright>
 
 namespace Processors.Tests;
 
+using System.Text.Json;
+
 public class UserAddressProcessorTests
 {
-    [Fact]
-    public void Process_ValidJson_WritesFormattedAddress()
-    {
-        // Arrange
-        var json =
-            """
+  [Fact]
+  public void Process_ValidJson_WritesFormattedAddress()
+  {
+    // Arrange
+    var json =
+        """
             {
                 "eventId": "12345",
                 "timestamp": "2023-10-01T12:00:00Z",
@@ -65,40 +69,40 @@ public class UserAddressProcessorTests
                 }
             }
             """;
-        var processor = new UserAddressProcessor();
-        using var sw = new StringWriter();
+    var processor = new UserAddressProcessor();
+    using var sw = new StringWriter();
 
-        // Act
-        processor.Process(json, sw);
-        var output = sw.ToString();
+    // Act
+    processor.Process(json, sw);
+    var output = sw.ToString();
 
-        // Assert
-        Assert.Contains("User Address:", output);
-        Assert.Contains("Street: 123 Main St", output);
-        Assert.Contains("City: Anytown", output);
-        Assert.Contains("State: CA", output);
-        Assert.Contains("Zip Code: 12345", output);
-        Assert.Contains("Country: USA", output);
-    }
+    // Assert
+    Assert.Contains("User Address:", output);
+    Assert.Contains("Street: 123 Main St", output);
+    Assert.Contains("City: Anytown", output);
+    Assert.Contains("State: CA", output);
+    Assert.Contains("Zip Code: 12345", output);
+    Assert.Contains("Country: USA", output);
+  }
 
-    [Fact]
-    public void Process_InvalidJson_ThrowsJsonException()
-    {
-        // Arrange
-        var json = "invalid json";
-        var processor = new UserAddressProcessor();
-        using var sw = new StringWriter();
+  [Fact]
+  public void Process_InvalidJson_ThrowsJsonException()
+  {
+    // Arrange
+    var json = "invalid json";
+    var processor = new UserAddressProcessor();
+    using var sw = new StringWriter();
 
-        // Act & Assert
-        Assert.Throws<JsonException>(() => processor.Process(json, sw));
-    }
+    // Act & Assert
+    Assert.Throws<JsonException>(() => processor.Process(json, sw));
+  }
 
-    [Fact]
-    public void Process_NullAddress_WritesNoAddressMessage()
-    {
-        // Arrange
-        var json =
-            """
+  [Fact]
+  public void Process_NullAddress_WritesNoAddressMessage()
+  {
+    // Arrange
+    var json =
+        """
             {
                 "eventId": "12345",
                 "timestamp": "2023-10-01T12:00:00Z",
@@ -148,14 +152,14 @@ public class UserAddressProcessorTests
                 }
             }
             """;
-        var processor = new UserAddressProcessor();
-        using var sw = new StringWriter();
+    var processor = new UserAddressProcessor();
+    using var sw = new StringWriter();
 
-        // Act
-        processor.Process(json, sw);
-        var output = sw.ToString();
+    // Act
+    processor.Process(json, sw);
+    var output = sw.ToString();
 
-        // Assert
-        Assert.Contains("No user address found.", output);
-    }
+    // Assert
+    Assert.Contains("No user address found.", output);
+  }
 }

@@ -1,13 +1,17 @@
+// <copyright file="UserPreferencesProcessorTests.cs" company="PlaceholderCompany">
+// Copyright (c) PlaceholderCompany. All rights reserved.
+// </copyright>
+
 namespace Processors.Tests;
 
 public class UserPreferencesProcessorTests
 {
-    [Fact]
-    public void Process_ValidJson_WritesFormattedPreferences()
-    {
-        // Arrange
-        var json =
-            """
+  [Fact]
+  public void Process_ValidJson_WritesFormattedPreferences()
+  {
+    // Arrange
+    var json =
+        """
             {
                 "eventId": "12345",
                 "timestamp": "2023-10-01T12:00:00Z",
@@ -63,19 +67,19 @@ public class UserPreferencesProcessorTests
                 }
             }
             """;
-        var processor = new UserPreferencesProcessor();
-        using var sw = new StringWriter();
+    var processor = new UserPreferencesProcessor();
+    using var sw = new StringWriter();
 
-        // Act
-        processor.Process(json, sw);
-        var output = sw.ToString();
+    // Act
+    processor.Process(json, sw);
+    var output = sw.ToString();
 
-        // Assert
-        Assert.Contains("User Preferences:", output);
-        Assert.Contains("Theme: dark", output);
-        Assert.Contains("Language: en", output);
-        Assert.Contains("Notifications: True", output);
-        Assert.Contains("Newsletter: False", output);
-        Assert.Contains("Timezone: UTC-8", output);
-    }
+    // Assert
+    Assert.Contains("User Preferences:", output);
+    Assert.Contains("Theme: dark", output);
+    Assert.Contains("Language: en", output);
+    Assert.Contains("Notifications: True", output);
+    Assert.Contains("Newsletter: False", output);
+    Assert.Contains("Timezone: UTC-8", output);
+  }
 }

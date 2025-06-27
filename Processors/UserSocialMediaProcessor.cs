@@ -1,23 +1,27 @@
-using Dto;
+// <copyright file="UserSocialMediaProcessor.cs" company="PlaceholderCompany">
+// Copyright (c) PlaceholderCompany. All rights reserved.
+// </copyright>
 
 namespace Processors;
 
+using Dto;
+
 public class UserSocialMediaProcessor : BaseProcessor<UserEventDto>
 {
-    public override void Process(string jsonInput, TextWriter output)
+  public override void Process(string jsonInput, TextWriter output)
+  {
+    var userEventDto = this.Deserialize(jsonInput);
+    if (userEventDto?.User?.SocialMedia != null)
     {
-        var userEventDto = Deserialize(jsonInput);
-        if (userEventDto?.User?.SocialMedia != null)
-        {
-            var socialMedia = userEventDto.User.SocialMedia;
-            output.WriteLine("Social Media Profiles:");
-            output.WriteLine($"Facebook: {socialMedia.Facebook}");
-            output.WriteLine($"Twitter: {socialMedia.Twitter}");
-            output.WriteLine($"Instagram: {socialMedia.Instagram}");
-        }
-        else
-        {
-            WriteNoDataMessage(output, "social media profiles");
-        }
+      var socialMedia = userEventDto.User.SocialMedia;
+      output.WriteLine("Social Media Profiles:");
+      output.WriteLine($"Facebook: {socialMedia.Facebook}");
+      output.WriteLine($"Twitter: {socialMedia.Twitter}");
+      output.WriteLine($"Instagram: {socialMedia.Instagram}");
     }
-} 
+    else
+    {
+      this.WriteNoDataMessage(output, "social media profiles");
+    }
+  }
+}

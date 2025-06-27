@@ -1,15 +1,19 @@
-using System.Text.Json;
+// <copyright file="UserProcessorTests.cs" company="PlaceholderCompany">
+// Copyright (c) PlaceholderCompany. All rights reserved.
+// </copyright>
 
 namespace Processors.Tests;
 
+using System.Text.Json;
+
 public class UserProcessorTests
 {
-    [Fact]
-    public void Process_ValidJson_WritesFormattedUserInfo()
-    {
-        // Arrange
-        var json =
-            """
+  [Fact]
+  public void Process_ValidJson_WritesFormattedUserInfo()
+  {
+    // Arrange
+    var json =
+        """
             {
                 "eventId": "12345",
                 "timestamp": "2023-10-01T12:00:00Z",
@@ -76,51 +80,51 @@ public class UserProcessorTests
             }
             """;
 
-        var processor = new UserProcessor();
-        var output = new StringWriter();
+    var processor = new UserProcessor();
+    var output = new StringWriter();
 
-        // Act
-        processor.Process(json, output);
+    // Act
+    processor.Process(json, output);
 
-        // Assert
-        var result = output.ToString();
-        Assert.Contains("User Information:", result);
-        Assert.Contains("User ID: user123", result);
-        Assert.Contains("Username: johndoe", result);
-        Assert.Contains("Email: john.doe@example.com", result);
-        Assert.Contains("Name: John Doe", result);
-        Assert.Contains("Date of Birth: 1980-01-01", result);
-        Assert.Contains("Gender: Male", result);
-        Assert.Contains("Phone Number: +1234567890", result);
-        Assert.Contains("Last Login: 2023-09-30 10:00:00", result);
-        Assert.Contains("Account Status: active", result);
-        Assert.Contains("Subscription Plan: premium", result);
-        Assert.Contains("Payment Method: credit card", result);
-        Assert.Contains("Last Payment Date: 2023-09-15", result);
-        Assert.Contains("Total Orders: 15", result);
-        Assert.Contains("Cart Items: 3", result);
-        Assert.Contains("Loyalty Points: 500", result);
-        Assert.Contains("Referral Code: REF123", result);
-        Assert.Contains("Favorite Categories:", result);
-        Assert.Contains("- electronics", result);
-        Assert.Contains("- books", result);
-        Assert.Contains("- clothing", result);
-        Assert.Contains("Wishlist Items:", result);
-        Assert.Contains("- item1", result);
-        Assert.Contains("- item2", result);
-        Assert.Contains("- item3", result);
-        Assert.Contains("Recent Searches:", result);
-        Assert.Contains("- laptop", result);
-        Assert.Contains("- headphones", result);
-        Assert.Contains("- smartphone", result);
-    }
+    // Assert
+    var result = output.ToString();
+    Assert.Contains("User Information:", result);
+    Assert.Contains("User ID: user123", result);
+    Assert.Contains("Username: johndoe", result);
+    Assert.Contains("Email: john.doe@example.com", result);
+    Assert.Contains("Name: John Doe", result);
+    Assert.Contains("Date of Birth: 1980-01-01", result);
+    Assert.Contains("Gender: Male", result);
+    Assert.Contains("Phone Number: +1234567890", result);
+    Assert.Contains("Last Login: 2023-09-30 10:00:00", result);
+    Assert.Contains("Account Status: active", result);
+    Assert.Contains("Subscription Plan: premium", result);
+    Assert.Contains("Payment Method: credit card", result);
+    Assert.Contains("Last Payment Date: 2023-09-15", result);
+    Assert.Contains("Total Orders: 15", result);
+    Assert.Contains("Cart Items: 3", result);
+    Assert.Contains("Loyalty Points: 500", result);
+    Assert.Contains("Referral Code: REF123", result);
+    Assert.Contains("Favorite Categories:", result);
+    Assert.Contains("- electronics", result);
+    Assert.Contains("- books", result);
+    Assert.Contains("- clothing", result);
+    Assert.Contains("Wishlist Items:", result);
+    Assert.Contains("- item1", result);
+    Assert.Contains("- item2", result);
+    Assert.Contains("- item3", result);
+    Assert.Contains("Recent Searches:", result);
+    Assert.Contains("- laptop", result);
+    Assert.Contains("- headphones", result);
+    Assert.Contains("- smartphone", result);
+  }
 
-    [Fact]
-    public void Process_NullUser_WritesNoDataMessage()
-    {
-        // Arrange
-        var json =
-            """
+  [Fact]
+  public void Process_NullUser_WritesNoDataMessage()
+  {
+    // Arrange
+    var json =
+        """
             {
                 "eventId": "12345",
                 "timestamp": "2023-10-01T12:00:00Z",
@@ -130,14 +134,14 @@ public class UserProcessorTests
             }
             """;
 
-        var processor = new UserProcessor();
-        var output = new StringWriter();
+    var processor = new UserProcessor();
+    var output = new StringWriter();
 
-        // Act
-        processor.Process(json, output);
+    // Act
+    processor.Process(json, output);
 
-        // Assert
-        var result = output.ToString();
-        Assert.Contains("No user information found.", result);
-    }
-} 
+    // Assert
+    var result = output.ToString();
+    Assert.Contains("No user information found.", result);
+  }
+}
