@@ -15,6 +15,89 @@ using Microsoft.Extensions.Logging;
 
 public class AnalysisService(ILogger<AnalysisService> logger)
 {
+    public static string GetTargetFramework(string solutionDir)
+    {
+        var propsPath = Path.Combine(solutionDir, "Directory.Build.props");
+        if (!File.Exists(propsPath))
+        {
+            return "net8.0";
+        }
+
+        var doc = XDocument.Load(propsPath);
+        var tfElement = doc.Descendants("TargetFramework").FirstOrDefault();
+        return tfElement?.Value ?? "net8.0";
+    }
+
+    public static List<(PropertyInfo Property, Type Type, string FullPath)> GetDeepProperties(Type type, string prefix = "")
+    {
+        var properties = new List<(PropertyInfo Property, Type Type, string FullPath)>();
+
+        foreach (var prop in type.GetProperties())
+        {
+            var propType = prop.PropertyType;
+            var fullPath = string.IsNullOrEmpty(prefix) ? prop.Name : $"{prefix}.{prop.Name}";
+
+            if (IsPrimitiveOrArrayOfPrimitives(propType))
+            {
+                properties.Add((prop, type, fullPath));
+                continue;
+            }
+
+            if (IsNullable(propType))
+            {
+                var itemProp = propType.GetProperty("Value")!;
+                if (IsPrimitiveOrArrayOfPrimitives(itemProp.PropertyType))
+                {
+                    properties.Add((prop, type, fullPath));
+                }
+                else
+                {
+                    properties.AddRange(GetDeepProperties(itemProp.PropertyType, fullPath + ".Value"));
+                }
+
+                continue;
+            }
+
+            if (IsGenericList(propType))
+            {
+                var itemProp = propType.GetProperty("Item")!;
+                properties.AddRange(GetDeepProperties(itemProp.PropertyType, fullPath + ".Item"));
+                continue;
+            }
+
+            properties.AddRange(GetDeepProperties(propType, fullPath));
+        }
+
+        return properties;
+    }
+
+    public static bool IsPrimitiveOrArrayOfPrimitives(Type type)
+    {
+        if (type.IsPrimitive || type == typeof(string) || type == typeof(decimal) || type == typeof(DateTime))
+        {
+            return true;
+        }
+
+        if (type.IsArray)
+        {
+            var elementType = type.GetElementType();
+            return elementType != null && (elementType.IsPrimitive || elementType == typeof(string));
+        }
+
+        if (IsGenericEnumerable(type))
+        {
+            var elementType = type.GetGenericArguments()[0];
+            return elementType.IsPrimitive || elementType == typeof(string);
+        }
+
+        return false;
+    }
+
+    public static bool IsNullable(Type type)
+    {
+        return Nullable.GetUnderlyingType(type) != null;
+    }
+
     public Type[] GetDtoAssemblyTypes(string dtoAssemblyPath)
     {
         // Path to the Dto.dll (adjust if needed)
@@ -27,20 +110,6 @@ public class AnalysisService(ILogger<AnalysisService> logger)
         return assembly.GetTypes()
             .Where(t => t is { IsClass: true, Namespace: "Dto" })
             .ToArray();
-    }
-
-
-    public static string GetTargetFramework(string solutionDir)
-    {
-        var propsPath = Path.Combine(solutionDir, "Directory.Build.props");
-        if (!File.Exists(propsPath))
-        {
-            return "net8.0";
-        }
-
-        var doc = XDocument.Load(propsPath);
-        var tfElement = doc.Descendants("TargetFramework").FirstOrDefault();
-        return tfElement?.Value ?? "net8.0";
     }
 
     public async Task<Dictionary<UsageKey, int>> AnalyzeUsageAsync(
@@ -58,7 +127,7 @@ public class AnalysisService(ILogger<AnalysisService> logger)
             deepProperties.Count,
             selectedClass.FullName);
 
-        var solution = LoadSolutionWorkspace(solutionPath);
+        var solution = this.LoadSolutionWorkspace(solutionPath);
 
         foreach (var project in solution.Projects)
         {
@@ -76,13 +145,13 @@ public class AnalysisService(ILogger<AnalysisService> logger)
                 continue;
             }
 
-            var compilation = await SetupProjectCompilation(project, selectedClass.Assembly.Location);
+            var compilation = await this.SetupProjectCompilation(project, selectedClass.Assembly.Location);
             if (compilation == null)
             {
                 continue;
             }
 
-            await AnalyzeProjectDocuments(project, compilation, deepProperties, propertyUsage, selectedClass);
+            await this.AnalyzeProjectDocuments(project, compilation, deepProperties, propertyUsage, selectedClass);
         }
 
         // add unused properties from deepProperties:
@@ -114,8 +183,7 @@ public class AnalysisService(ILogger<AnalysisService> logger)
                 MetadataReference.CreateFromFile(typeof(List<>).Assembly.Location),
                 MetadataReference.CreateFromFile(typeof(Enumerable).Assembly.Location),
                 MetadataReference.CreateFromFile(typeof(Console).Assembly.Location),
-                MetadataReference.CreateFromFile(assemblyPath)
-            );
+                MetadataReference.CreateFromFile(assemblyPath));
     }
 
     private Solution LoadSolutionWorkspace(string solutionPath)
@@ -128,7 +196,7 @@ public class AnalysisService(ILogger<AnalysisService> logger)
         var projectPaths = GetProjectPathsFromSolution(solutionPath);
         foreach (var projectPath in projectPaths)
         {
-            LoadProjectIntoWorkspace(workspace, projectPath.Replace("\\", "/"));
+            this.LoadProjectIntoWorkspace(workspace, projectPath.Replace("\\", "/"));
         }
 
         var solution = workspace.CurrentSolution;
@@ -171,7 +239,7 @@ public class AnalysisService(ILogger<AnalysisService> logger)
                 .Select(p => p.Property.Name)
                 .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
-            AnalyzePropertyUsage(
+            this.AnalyzePropertyUsage(
                 memberAccessExpressionSyntaxes,
                 deepPropertyNames,
                 deepProperties,
@@ -202,7 +270,7 @@ public class AnalysisService(ILogger<AnalysisService> logger)
             var deepProperty = deepProperties
                 .SingleOrDefault(p =>
                     attribute.ClassName == p.Type.Name
-                    &&  attribute.FieldName == p.Property.Name);
+                    && attribute.FieldName == p.Property.Name);
 
             if (deepProperty == default)
             {
@@ -230,70 +298,6 @@ public class AnalysisService(ILogger<AnalysisService> logger)
         }
     }
 
-    public static List<(PropertyInfo Property, Type Type, string FullPath)> GetDeepProperties(Type type, string prefix = "")
-    {
-        var properties = new List<(PropertyInfo Property, Type Type, string FullPath)>();
-
-        foreach (var prop in type.GetProperties())
-        {
-            var propType = prop.PropertyType;
-            var fullPath = string.IsNullOrEmpty(prefix) ? prop.Name : $"{prefix}.{prop.Name}";
-
-            if (IsPrimitiveOrArrayOfPrimitives(propType))
-            {
-                properties.Add((prop, type, fullPath));
-                continue;
-            }
-
-            if (IsNullable(propType))
-            {
-                var itemProp = propType.GetProperty("Value")!;
-                if (IsPrimitiveOrArrayOfPrimitives(itemProp.PropertyType))
-                {
-                    properties.Add((prop, type, fullPath));
-                }
-                else
-                {
-                    properties.AddRange(GetDeepProperties(itemProp.PropertyType, fullPath + ".Value"));
-                }
-                continue;
-            }
-
-            if (IsGenericList(propType))
-            {
-                var itemProp = propType.GetProperty("Item")!;
-                properties.AddRange(GetDeepProperties(itemProp.PropertyType, fullPath + ".Item"));
-                continue;
-            }
-
-            properties.AddRange(GetDeepProperties(propType, fullPath));
-        }
-
-        return properties;
-    }
-
-    public static bool IsPrimitiveOrArrayOfPrimitives(Type type)
-    {
-        if (type.IsPrimitive || type == typeof(string) || type == typeof(decimal) || type == typeof(DateTime))
-        {
-            return true;
-        }
-
-        if (type.IsArray)
-        {
-            var elementType = type.GetElementType();
-            return elementType != null && (elementType.IsPrimitive || elementType == typeof(string));
-        }
-
-        if (IsGenericEnumerable(type))
-        {
-            var elementType = type.GetGenericArguments()[0];
-            return elementType.IsPrimitive || elementType == typeof(string);
-        }
-
-        return false;
-    }
-
     private static bool IsGenericList(Type type)
     {
         return type.GetInterfaces().Any(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IList<>));
@@ -303,12 +307,6 @@ public class AnalysisService(ILogger<AnalysisService> logger)
     {
         return type.GetInterfaces().Any(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IEnumerable<>));
     }
-
-    public static bool IsNullable(Type type)
-    {
-        return Nullable.GetUnderlyingType(type) != null;
-    }
-
 
     private void LoadProjectIntoWorkspace(AdhocWorkspace workspace, string projectPath)
     {
@@ -326,8 +324,7 @@ public class AnalysisService(ILogger<AnalysisService> logger)
             VersionStamp.Create(),
             projectName,
             projectName,
-            LanguageNames.CSharp
-        );
+            LanguageNames.CSharp);
 
         var project = workspace.AddProject(projectInfo);
 
@@ -339,8 +336,7 @@ public class AnalysisService(ILogger<AnalysisService> logger)
                 DocumentId.CreateNewId(project.Id),
                 Path.GetFileName(docPath),
                 loader: TextLoader.From(TextAndVersion.Create(sourceText, VersionStamp.Create())),
-                filePath: docPath
-            );
+                filePath: docPath);
 
             workspace.AddDocument(documentInfo);
         }
@@ -374,6 +370,6 @@ public class AnalysisService(ILogger<AnalysisService> logger)
         var expression = usage.Expression; // This is 'address' in 'address.ZipCode'
         var typeInfo = model.GetTypeInfo(expression);
         var type = typeInfo.Type;
-        return new ClassAndField(type is null ? "" : type.Name, fieldName);
+        return new ClassAndField(type is null ? string.Empty : type.Name, fieldName);
     }
 }
