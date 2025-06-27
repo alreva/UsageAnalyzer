@@ -1,13 +1,17 @@
+// <copyright file="AnalysisService.cs" company="PlaceholderCompany">
+// Copyright (c) PlaceholderCompany. All rights reserved.
+// </copyright>
+
+namespace Analyze;
+
 using System.Reflection;
+using System.Xml.Linq;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Host.Mef;
 using Microsoft.CodeAnalysis.Text;
 using Microsoft.Extensions.Logging;
-using System.Xml.Linq;
-
-namespace Analyze;
 
 public class AnalysisService(ILogger<AnalysisService> logger)
 {
@@ -55,7 +59,7 @@ public class AnalysisService(ILogger<AnalysisService> logger)
             selectedClass.FullName);
 
         var solution = LoadSolutionWorkspace(solutionPath);
-        
+
         foreach (var project in solution.Projects)
         {
             // Skip Test project
@@ -64,7 +68,7 @@ public class AnalysisService(ILogger<AnalysisService> logger)
                 logger.LogInformation("Skipping test project {ProjectName}.", project.Name);
                 continue;
             }
-                
+
             // Skip Analyze project
             if (project.Name is "Analyze" or "Dto")
             {
@@ -85,16 +89,16 @@ public class AnalysisService(ILogger<AnalysisService> logger)
         foreach (var deepProperty in deepProperties)
         {
             var attribute = new ClassAndField(deepProperty.Type.Name, deepProperty.Property.Name);
-            
+
             if (propertyUsage.Any(k => k.Key.Attribute == attribute))
             {
                 continue; // already exists
             }
-            
+
             UsageKey key = new("N/A", attribute);
             propertyUsage.TryAdd(key, 0);
         }
-        
+
         return propertyUsage;
     }
 
@@ -158,11 +162,11 @@ public class AnalysisService(ILogger<AnalysisService> logger)
             var root = await syntaxTree.GetRootAsync();
 
             logger.LogDebug("Analyzing file: {FilePath}", filePath);
-            
+
             var memberAccessExpressionSyntaxes = root
                 .DescendantNodes()
                 .OfType<MemberAccessExpressionSyntax>();
-            
+
             var deepPropertyNames = deepProperties
                 .Select(p => p.Property.Name)
                 .ToHashSet(StringComparer.OrdinalIgnoreCase);
@@ -193,10 +197,10 @@ public class AnalysisService(ILogger<AnalysisService> logger)
             {
                 continue;
             }
-            
+
             var attribute = GetClassAndFieldName(semanticModel, usageCandidate);
             var deepProperty = deepProperties
-                .SingleOrDefault(p => 
+                .SingleOrDefault(p =>
                     attribute.ClassName == p.Type.Name
                     &&  attribute.FieldName == p.Property.Name);
 
@@ -212,7 +216,7 @@ public class AnalysisService(ILogger<AnalysisService> logger)
                     selectedClass.Name);
                 continue;
             }
-            
+
             if (string.IsNullOrWhiteSpace(attribute.ClassName))
             {
                 attribute = attribute with { ClassName = selectedClass.Name };
@@ -234,7 +238,7 @@ public class AnalysisService(ILogger<AnalysisService> logger)
         {
             var propType = prop.PropertyType;
             var fullPath = string.IsNullOrEmpty(prefix) ? prop.Name : $"{prefix}.{prop.Name}";
-            
+
             if (IsPrimitiveOrArrayOfPrimitives(propType))
             {
                 properties.Add((prop, type, fullPath));
@@ -299,7 +303,7 @@ public class AnalysisService(ILogger<AnalysisService> logger)
     {
         return type.GetInterfaces().Any(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IEnumerable<>));
     }
-    
+
     public static bool IsNullable(Type type)
     {
         return Nullable.GetUnderlyingType(type) != null;
