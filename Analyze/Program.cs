@@ -2,6 +2,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Spectre.Console;
+using System.IO;
 
 namespace Analyze;
 
@@ -28,7 +29,10 @@ public class Program
             var solutionPath = consoleUi.FindSolutionFile();
 
             // Get all DTO classes
-            var dtoClasses = analysisService.GetDtoAssemblyTypes(solutionPath).ToList();
+            var solutionDir = Path.GetDirectoryName(solutionPath)!;
+            var tf = AnalysisService.GetTargetFramework(solutionDir);
+            var dtoAssemblyPath = Path.Combine(solutionDir, "Dto", "bin", "Debug", tf, "Dto.dll");
+            var dtoClasses = analysisService.GetDtoAssemblyTypes(dtoAssemblyPath).ToList();
             if (!dtoClasses.Any())
             {
                 AnsiConsole.MarkupLine("[red]No DTO classes found in the Dto project.[/]");
@@ -51,7 +55,7 @@ public class Program
 
             // Analyze usage
             var propertyUsage = await analysisService
-                .AnalyzeUsageAsync(solutionPath, selectedClass, skipTestProjects);
+                .AnalyzeUsageAsync(solutionPath, selectedClass, skipTestProjects, dtoAssemblyPath);
 
             // Display results
             consoleUi.DisplayResults(propertyUsage, selectedClass, propertyUsageFormat);
