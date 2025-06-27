@@ -22,12 +22,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\DtoUsageAnalyzer\DtoUsageAnalyzer.csproj"/>
-  </ItemGroup>
-
-  <ItemGroup>
-    <Reference Include="Dto">
-      <HintPath>..\Dto\bin\Debug\$(TargetFramework)\Dto.dll</HintPath>
-    </Reference>
+    <ProjectReference Include="..\Dto\Dto.csproj" />
   </ItemGroup>
 
 </Project>

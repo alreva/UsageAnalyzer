@@ -1,0 +1,6 @@
+<Project>
+  <Target Name="FormatCode" BeforeTargets="Build">
+    <Exec Command="dotnet tool restore" />
+    <Exec Command="dotnet format --no-restore" />
+  </Target>
+</Project>
