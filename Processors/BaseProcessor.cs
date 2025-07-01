@@ -13,6 +13,7 @@ public abstract class BaseProcessor<TDto> : IProcessor<TDto>
     PropertyNameCaseInsensitive = true,
   };
 
+  /// <inheritdoc/>
   public abstract void Process(string jsonInput, TextWriter output);
 
   protected TDto? Deserialize(string jsonInput)
