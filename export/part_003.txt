@@ -1,0 +1,225 @@
+
+# Backup folder for Package Reference Convert tool in Visual Studio 2017
+MigrationBackup/
+
+# Ionide (cross platform F# VS Code tools) working folder
+.ionide/
+
+# Fody - auto-generated XML schema
+FodyWeavers.xsd
+
+# VS Code files for those working on multiple tools
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+*.code-workspace
+
+# Local History for Visual Studio Code
+.history/
+
+# Windows Installer files from build outputs
+*.cab
+*.msi
+*.msix
+*.msm
+*.msp
+
+# JetBrains Rider
+*.sln.iml
+.idea/
+
+##
+## Visual studio for Mac
+##
+
+
+# globs
+Makefile.in
+*.userprefs
+*.usertasks
+config.make
+config.status
+aclocal.m4
+install-sh
+autom4te.cache/
+*.tar.gz
+tarballs/
+test-results/
+
+# Mac bundle stuff
+*.dmg
+*.app
+
+# content below from: https://github.com/github/gitignore/blob/main/Global/macOS.gitignore
+# General
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Icon must end with two \r
+Icon
+
+
+# Thumbnails
+._*
+
+# Files that might appear in the root of a volume
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+
+# Directories potentially created on remote AFP share
+.AppleDB
+.AppleDesktop
+Network Trash Folder
+Temporary Items
+.apdisk
+
+# content below from: https://github.com/github/gitignore/blob/main/Global/Windows.gitignore
+# Windows thumbnail cache files
+Thumbs.db
+ehthumbs.db
+ehthumbs_vista.db
+
+# Dump file
+*.stackdump
+
+# Folder config file
+[Dd]esktop.ini
+
+# Recycle Bin used on file shares
+$RECYCLE.BIN/
+
+# Windows Installer files
+*.cab
+*.msi
+*.msix
+*.msm
+*.msp
+
+# Windows shortcuts
+*.lnk
+
+# Vim temporary swap files
+*.swp
+
+# IDE settings
+.vscode/
+
+# Documentation and code files
+*.docx
+code.txt
+code_plain.txt
+
+# Visual Studio files
+.vs/
+*.user
+*.userosscache
+*.suo
+*.userprefs
+*.dbmdl
+*.dbproj.schemaview
+*.jfm
+*.pfx
+*.publishsettings
+orleans.codegen.cs
+
+# Rider
+.idea/
+*.sln.iml
+
+-- Analyze.Tests/AnalysisServiceTests.cs --
+using Analyze;
+using Dto;
+using Microsoft.Extensions.Logging;
+
+namespace Analyze.Tests;
+
+public class AnalysisServiceTests
+{
+    private static AnalysisService CreateService()
+    {
+        ILogger<AnalysisService> logger = LoggerFactory.Create(builder => { }).CreateLogger<AnalysisService>();
+        return new AnalysisService(logger);
+    }
+
+    private static string GetSolutionPath()
+    {
+        var baseDir = AppContext.BaseDirectory;
+        var path = Path.Combine(baseDir, "../../../../UsageAnalyzer.sln");
+        return Path.GetFullPath(path);
+    }
+
+    [Fact]
+    public void GetDtoAssemblyTypes_ReturnsDtoTypes()
+    {
+        var service = CreateService();
+        var types = service.GetDtoAssemblyTypes(GetSolutionPath());
+        Assert.Contains(types, t => t.Name == nameof(UserEventDto));
+    }
+
+    [Fact]
+    public void IsNullable_DetectsNullableTypes()
+    {
+        Assert.True(AnalysisService.IsNullable(typeof(int?)));
+        Assert.False(AnalysisService.IsNullable(typeof(int)));
+    }
+
+    [Fact]
+    public void IsPrimitiveOrArrayOfPrimitives_ReturnsExpected()
+    {
+        Assert.True(AnalysisService.IsPrimitiveOrArrayOfPrimitives(typeof(int)));
+        Assert.True(AnalysisService.IsPrimitiveOrArrayOfPrimitives(typeof(string)));
+        Assert.True(AnalysisService.IsPrimitiveOrArrayOfPrimitives(typeof(decimal)));
+        Assert.True(AnalysisService.IsPrimitiveOrArrayOfPrimitives(typeof(DateTime)));
+        Assert.True(AnalysisService.IsPrimitiveOrArrayOfPrimitives(typeof(string[])));
+        Assert.True(AnalysisService.IsPrimitiveOrArrayOfPrimitives(typeof(List<int>)));
+        Assert.False(AnalysisService.IsPrimitiveOrArrayOfPrimitives(typeof(DeviceInfo)));
+    }
+
+    [Fact]
+    public void GetDeepProperties_ReturnsNestedPaths()
+    {
+        var uType = typeof(User);
+        var result = AnalysisService.GetDeepProperties(uType)!;
+        var paths = result.Select(p => p.FullPath).ToList();
+        Assert.Contains("Address.City", paths);
+        Assert.Contains("SocialMedia.Twitter", paths);
+        Assert.Contains("DeviceInfo.IpAddress", paths);
+    }
+
+    [Fact]
+    public void GetTargetFramework_ReturnsNet80WhenFileMissing()
+    {
+        var temp = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+        Directory.CreateDirectory(temp);
+        try
+        {
+            var framework = AnalysisService.GetTargetFramework(temp);
+            Assert.Equal("net8.0", framework);
+        }
+        finally
+        {
+            Directory.Delete(temp, true);
+        }
+    }
+
+    [Fact]
+    public void GetTargetFramework_ReadsValueFromProps()
+    {
+        var temp = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+        Directory.CreateDirectory(temp);
+        File.WriteAllText(Path.Combine(temp, "Directory.Build.props"), """
+<Project>
+  <PropertyGroup>
+    <TargetFramework>net7.0</TargetFramework>
+  </PropertyGroup>
+</Project>
+""");
+        try
