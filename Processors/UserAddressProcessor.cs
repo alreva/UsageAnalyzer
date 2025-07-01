@@ -8,6 +8,7 @@ using Dto;
 
 public class UserAddressProcessor : BaseProcessor<UserEventDto>
 {
+  /// <inheritdoc/>
   public override void Process(string jsonInput, TextWriter output)
   {
     var userEventDto = this.Deserialize(jsonInput);
