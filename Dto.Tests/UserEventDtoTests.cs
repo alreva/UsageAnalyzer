@@ -34,7 +34,7 @@ public class UserEventDtoTests
           City = "Anytown",
           State = "CA",
           ZipCode = "12345",
-          Country = "USA"
+          Country = "USA",
         },
         Preferences = new Preferences
         {
@@ -42,7 +42,7 @@ public class UserEventDtoTests
           Language = "en",
           Notifications = true,
           Newsletter = false,
-          Timezone = "UTC-8"
+          Timezone = "UTC-8",
         },
         LastLogin = DateTime.Parse("2023-09-30T10:00:00Z"),
         AccountStatus = "active",
@@ -60,29 +60,29 @@ public class UserEventDtoTests
         {
           Facebook = "facebook.com/johndoe",
           Twitter = "twitter.com/johndoe",
-          Instagram = "instagram.com/johndoe"
+          Instagram = "instagram.com/johndoe",
         },
         DeviceInfo = new DeviceInfo
         {
           DeviceType = "mobile",
           Os = "iOS",
           Browser = "Safari",
-          IpAddress = "192.168.1.1"
+          IpAddress = "192.168.1.1",
         },
         ActivityLog = new List<ActivityLog>
                 {
                     new()
                     {
                         Action = "login",
-                        Timestamp = DateTime.Parse("2023-09-30T10:00:00Z")
+                        Timestamp = DateTime.Parse("2023-09-30T10:00:00Z"),
                     },
                     new()
                     {
                         Action = "viewProduct",
                         ProductId = "prod123",
                         Timestamp = DateTime.Parse("2023-09-30T10:05:00Z")
-                    }
-                }
+                    },
+                },
       },
     };
 
@@ -121,7 +121,7 @@ public class UserEventDtoTests
     Assert.Equal(userEventDto.User.Preferences.Language, deserializedUserEventDto.User.Preferences.Language);
     Assert.Equal(
       userEventDto.User.Preferences.Notifications,
-        deserializedUserEventDto.User.Preferences.Notifications);
+      deserializedUserEventDto.User.Preferences.Notifications);
     Assert.Equal(userEventDto.User.Preferences.Newsletter, deserializedUserEventDto.User.Preferences.Newsletter);
     Assert.Equal(userEventDto.User.Preferences.Timezone, deserializedUserEventDto.User.Preferences.Timezone);
     Assert.Equal(userEventDto.User.LastLogin, deserializedUserEventDto.User.LastLogin);
@@ -146,13 +146,13 @@ public class UserEventDtoTests
     Assert.Equal(userEventDto.User.ActivityLog[0].Action, deserializedUserEventDto.User.ActivityLog[0].Action);
     Assert.Equal(
       userEventDto.User.ActivityLog[0].Timestamp,
-        deserializedUserEventDto.User.ActivityLog[0].Timestamp);
+      deserializedUserEventDto.User.ActivityLog[0].Timestamp);
     Assert.Equal(userEventDto.User.ActivityLog[1].Action, deserializedUserEventDto.User.ActivityLog[1].Action);
     Assert.Equal(
       userEventDto.User.ActivityLog[1].ProductId,
-        deserializedUserEventDto.User.ActivityLog[1].ProductId);
+      deserializedUserEventDto.User.ActivityLog[1].ProductId);
     Assert.Equal(
       userEventDto.User.ActivityLog[1].Timestamp,
-        deserializedUserEventDto.User.ActivityLog[1].Timestamp);
+      deserializedUserEventDto.User.ActivityLog[1].Timestamp);
   }
 }
