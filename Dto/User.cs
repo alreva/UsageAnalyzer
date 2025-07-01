@@ -1,5 +1,5 @@
-// <copyright file="User.cs" company="PlaceholderCompany">
-// Copyright (c) PlaceholderCompany. All rights reserved.
+// <copyright file="User.cs" company="alreva">
+// Copyright (c) alreva. All rights reserved.
 // </copyright>
 
 namespace Dto;
