@@ -9,6 +9,7 @@ trim_trailing_whitespace = true
 indent_style = space
 indent_size = 2
 charset = utf-8
+dotnet_diagnostic.SA1633.severity = none
 
 # C# coding conventions
 csharp_style_var_elsewhere = true:suggestion

@@ -1,7 +1,3 @@
-// <copyright file="UserEventDto.cs" >
-// Copyright (c) alreva. All rights reserved.
-// </copyright>
-
 namespace Dto;
 
 /// <summary>

@@ -1,3 +1,5 @@
+using DtoUsageAnalyzer;
+
 namespace Analyze.Tests;
 
 using System.IO;

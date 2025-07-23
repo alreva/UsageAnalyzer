@@ -133,10 +133,7 @@
         "type": "Project"
       },
       "processors": {
-        "type": "Project",
-        "dependencies": {
-          "Dto": "[1.0.0, )"
-        }
+        "type": "Project"
       }
     }
   }

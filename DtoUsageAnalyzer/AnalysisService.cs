@@ -1,9 +1,3 @@
-// <copyright file="AnalysisService.cs" company="PlaceholderCompany">
-// Copyright (c) PlaceholderCompany. All rights reserved.
-// </copyright>
-
-namespace Analyze;
-
 using System.Reflection;
 using System.Runtime.Loader;
 using System.Xml.Linq;
@@ -13,6 +7,8 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Host.Mef;
 using Microsoft.CodeAnalysis.Text;
 using Microsoft.Extensions.Logging;
+
+namespace DtoUsageAnalyzer;
 
 public class AnalysisService(ILogger<AnalysisService> logger)
 {

@@ -4,7 +4,9 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
   <ItemGroup>
-    <ProjectReference Include="..\Dto\Dto.csproj" />
+    <Reference Include="Dto">
+      <HintPath>..\Dto\bin\Debug\net8.0\Dto.dll</HintPath>
+    </Reference>
   </ItemGroup>
 
 </Project>
