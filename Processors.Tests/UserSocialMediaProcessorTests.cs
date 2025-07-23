@@ -1,7 +1,3 @@
-// <copyright file="UserSocialMediaProcessorTests.cs" company="PlaceholderCompany">
-// Copyright (c) PlaceholderCompany. All rights reserved.
-// </copyright>
-
 namespace Processors.Tests;
 
 using System.Text.Json;

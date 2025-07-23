@@ -1,7 +1,3 @@
-// <copyright file="ConsoleUi.cs" company="PlaceholderCompany">
-// Copyright (c) PlaceholderCompany. All rights reserved.
-// </copyright>
-
 namespace Analyze;
 
 using Microsoft.Extensions.Logging;

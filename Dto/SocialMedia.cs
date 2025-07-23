@@ -1,4 +1,4 @@
-// <copyright file="SocialMedia.cs" company="alreva">
+// <copyright file="SocialMedia.cs" >
 // Copyright (c) alreva. All rights reserved.
 // </copyright>
 

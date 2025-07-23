@@ -1,4 +1,4 @@
-// <copyright file="ActivityLog.cs" company="alreva">
+// <copyright file="ActivityLog.cs" >
 // Copyright (c) alreva. All rights reserved.
 // </copyright>
 

@@ -1,10 +1,7 @@
-// <copyright file="AnalysisService.cs" company="PlaceholderCompany">
-// Copyright (c) PlaceholderCompany. All rights reserved.
-// </copyright>
-
 namespace Analyze;
 
 using System.Reflection;
+using System.Runtime.Loader;
 using System.Xml.Linq;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
@@ -106,7 +103,7 @@ public class AnalysisService(ILogger<AnalysisService> logger)
       throw new FileNotFoundException($"Dto.dll not found at {dtoAssemblyPath}. Please build the Dto project first.");
     }
 
-    var assembly = Assembly.LoadFrom(dtoAssemblyPath);
+    var assembly = AssemblyLoadContext.Default.LoadFromAssemblyPath(dtoAssemblyPath);
     return assembly.GetTypes()
         .Where(t => t is { IsClass: true, Namespace: "Dto" })
         .ToArray();
@@ -347,17 +344,16 @@ public class AnalysisService(ILogger<AnalysisService> logger)
     var projectPaths = new List<string>();
     var solutionDir = Path.GetDirectoryName(solutionPath)!;
 
-    foreach (var line in File.ReadAllLines(solutionPath))
+    var projectLines = File.ReadAllLines(solutionPath)
+      .Where(line => line.Trim().StartsWith("Project(") && line.Contains(".csproj"));
+    foreach (var line in projectLines)
     {
-      if (line.Trim().StartsWith("Project(") && line.Contains(".csproj"))
+      var parts = line.Split(',');
+      if (parts.Length > 1)
       {
-        var parts = line.Split(',');
-        if (parts.Length > 1)
-        {
-          var relativePath = parts[1].Trim().Trim('"');
-          var fullPath = Path.Combine(solutionDir, relativePath);
-          projectPaths.Add(fullPath);
-        }
+        var relativePath = parts[1].Trim().Trim('"');
+        var fullPath = Path.Combine(solutionDir, relativePath);
+        projectPaths.Add(fullPath);
       }
     }
 

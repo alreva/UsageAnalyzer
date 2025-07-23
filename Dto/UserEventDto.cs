@@ -1,4 +1,4 @@
-// <copyright file="UserEventDto.cs" company="alreva">
+// <copyright file="UserEventDto.cs" >
 // Copyright (c) alreva. All rights reserved.
 // </copyright>
 

@@ -1,7 +1,3 @@
-// <copyright file="UserEventDtoTests.cs" company="PlaceholderCompany">
-// Copyright (c) PlaceholderCompany. All rights reserved.
-// </copyright>
-
 namespace Dto.Tests;
 
 using System.Text.Json;

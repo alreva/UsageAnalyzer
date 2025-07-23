@@ -1,4 +1,4 @@
-// <copyright file="DeviceInfo.cs" company="alreva">
+// <copyright file="DeviceInfo.cs" >
 // Copyright (c) alreva. All rights reserved.
 // </copyright>
 

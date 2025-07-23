@@ -1,4 +1,4 @@
-// <copyright file="Preferences.cs" company="alreva">
+// <copyright file="Preferences.cs" >
 // Copyright (c) alreva. All rights reserved.
 // </copyright>
 

@@ -1,7 +1,3 @@
-// <copyright file="UserPreferencesProcessorTests.cs" company="PlaceholderCompany">
-// Copyright (c) PlaceholderCompany. All rights reserved.
-// </copyright>
-
 namespace Processors.Tests;
 
 public class UserPreferencesProcessorTests

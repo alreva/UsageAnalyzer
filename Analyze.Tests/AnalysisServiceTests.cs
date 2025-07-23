@@ -1,7 +1,3 @@
-// <copyright file="AnalysisServiceTests.cs" company="PlaceholderCompany">
-// Copyright (c) PlaceholderCompany. All rights reserved.
-// </copyright>
-
 namespace Analyze.Tests;
 
 using System.IO;
@@ -87,13 +83,14 @@ public class AnalysisServiceTests
   {
     var temp = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
     Directory.CreateDirectory(temp);
-    File.WriteAllText(Path.Combine(temp, "Directory.Build.props"), """
-<Project>
-  <PropertyGroup>
-    <TargetFramework>net7.0</TargetFramework>
-  </PropertyGroup>
-</Project>
-""");
+    const string buildProps = """
+                              <Project>
+                                <PropertyGroup>
+                                  <TargetFramework>net7.0</TargetFramework>
+                                </PropertyGroup>
+                              </Project>
+                              """;
+    File.WriteAllText(Path.Combine(temp, "Directory.Build.props"), buildProps);
     try
     {
       var framework = AnalysisService.GetTargetFramework(temp);
@@ -110,7 +107,6 @@ public class AnalysisServiceTests
   {
     var service = CreateService();
     var solutionPath = GetSolutionPath();
-    var solutionDir = Path.GetDirectoryName(solutionPath)!;
     var result = await service.AnalyzeUsageAsync(
         solutionPath,
         typeof(UserEventDto),
