@@ -23,12 +23,11 @@ public class AnalysisServiceTests
   [Fact]
   public void GetDtoAssemblyTypes_ReturnsDtoTypes()
   {
-    var service = CreateService();
     var solutionPath = GetSolutionPath();
     var solutionDir = Path.GetDirectoryName(solutionPath)!;
     var tf = AnalysisService.GetTargetFramework(solutionDir);
     var dtoAssemblyPath = Path.Combine(solutionDir, "Dto", "bin", "Debug", tf, "Dto.dll");
-    var types = service.GetDtoAssemblyTypes(dtoAssemblyPath);
+    var types = AnalysisService.GetDtoAssemblyTypes(dtoAssemblyPath);
     Assert.Contains(types, t => t.Name == nameof(UserEventDto));
   }
 

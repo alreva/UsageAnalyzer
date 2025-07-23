@@ -22,10 +22,13 @@ public class UserProcessor : BaseProcessor<UserEventDto>
     output.WriteLine($"Name: {user.FirstName} {user.LastName}");
     output.WriteLine($"Date of Birth: {user.DateOfBirth:yyyy-MM-dd}");
 
-    if (user.CreatedAt.HasValue)
-    {
-        output.WriteLine($"Created At: {user.CreatedAt.Value:yyyy-MM-dd HH:mm:ss}");
-    }
+    #pragma warning disable S125
+    // this is done intentionally to show how unused properties are displayed in the final report
+    // if (user.CreatedAt.HasValue)
+    // {
+    //     output.WriteLine($"Created At: {user.CreatedAt.Value:yyyy-MM-dd HH:mm:ss}");
+    // }
+    #pragma warning restore S125
 
     output.WriteLine($"Gender: {user.Gender}");
     output.WriteLine($"Phone Number: {user.PhoneNumber}");

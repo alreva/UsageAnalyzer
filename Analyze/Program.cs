@@ -1,3 +1,7 @@
+// <copyright file="Program.cs" company="PlaceholderCompany">
+// Copyright (c) PlaceholderCompany. All rights reserved.
+// </copyright>
+
 namespace Analyze;
 
 using System.IO;
@@ -32,7 +36,7 @@ public class Program
       var solutionDir = Path.GetDirectoryName(solutionPath)!;
       var tf = AnalysisService.GetTargetFramework(solutionDir);
       var dtoAssemblyPath = Path.Combine(solutionDir, "Dto", "bin", "Debug", tf, "Dto.dll");
-      var dtoClasses = analysisService.GetDtoAssemblyTypes(dtoAssemblyPath).ToList();
+      var dtoClasses = AnalysisService.GetDtoAssemblyTypes(dtoAssemblyPath).ToList();
       if (!dtoClasses.Any())
       {
         AnsiConsole.MarkupLine("[red]No DTO classes found in the Dto project.[/]");
@@ -58,7 +62,7 @@ public class Program
           .AnalyzeUsageAsync(solutionPath, selectedClass, skipTestProjects);
 
       // Display results
-      consoleUi.DisplayResults(propertyUsage, selectedClass, propertyUsageFormat);
+      consoleUi.DisplayResults(propertyUsage, propertyUsageFormat);
     }
     catch (Exception ex)
     {

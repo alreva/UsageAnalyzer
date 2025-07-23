@@ -1,3 +1,7 @@
+// <copyright file="ConsoleUi.cs" company="PlaceholderCompany">
+// Copyright (c) PlaceholderCompany. All rights reserved.
+// </copyright>
+
 namespace Analyze;
 
 using Microsoft.Extensions.Logging;
@@ -9,6 +13,7 @@ public class ConsoleUi(ILogger logger)
   {
     TotalUsages,
     UsagesPerFile,
+    UnusedPropertiesOnly,
   }
 
   public void DisplayWelcome()
@@ -45,8 +50,14 @@ public class ConsoleUi(ILogger logger)
     var choice = AnsiConsole.Prompt(
         new SelectionPrompt<string>()
             .Title("How would you like to display property usage?")
-            .AddChoices("Show usages per file", "Show only total usages"));
-    return choice == "Show usages per file" ? PropertyUsageFormat.UsagesPerFile : PropertyUsageFormat.TotalUsages;
+            .AddChoices("Show usages per file", "Show only total usages", "Show unused properties only"));
+    return choice switch
+    {
+      "Show usages per file" => PropertyUsageFormat.UsagesPerFile,
+      "Show only total usages" => PropertyUsageFormat.TotalUsages,
+      "Show unused properties only" => PropertyUsageFormat.UnusedPropertiesOnly,
+      _ => throw new InvalidOperationException("Invalid property usage format selected"),
+    };
   }
 
   public bool PromptToSkipTestProjects()
@@ -108,66 +119,98 @@ public class ConsoleUi(ILogger logger)
     throw new FileNotFoundException("No solution file found in current or parent directory.");
   }
 
-  public void DisplayResults(
-      Dictionary<UsageKey, int> propertyUsage,
-      Type selectedClass,
-      PropertyUsageFormat propertyUsageFormat)
+  public void DisplayResults(Dictionary<UsageKey, int> propertyUsage, PropertyUsageFormat propertyUsageFormat)
   {
     // Property Usage Table
     AnsiConsole.MarkupLine("\n[bold blue]Property Usage Analysis[/]");
-    if (propertyUsageFormat == PropertyUsageFormat.TotalUsages)
+    switch (propertyUsageFormat)
     {
-      var propertyTable = new Table()
-          .Border(TableBorder.Rounded)
-          .AddColumn(new TableColumn("[bold]Property[/]").LeftAligned())
-          .AddColumn(new TableColumn("[bold]Total Usages[/]").RightAligned());
+      case PropertyUsageFormat.UnusedPropertiesOnly:
+        {
+          var propertyTable = new Table()
+            .Border(TableBorder.Rounded)
+            .AddColumn(new TableColumn("[bold]Property[/]").LeftAligned());
 
-      var propertyUsageData = propertyUsage
-          .Select(u => new { PropertyPath = u.Key.Attribute, Count = u.Value })
-          .GroupBy(x => x.PropertyPath)
-          .OrderBy(x => x.Key.ClassName)
-          .ThenBy(x => x.Key.FieldName)
-          .Select(x => new
+          var propertyUsageData = propertyUsage
+            .Where(u => u.Value == 0)
+            .Select(u => u.Key)
+            .Distinct()
+            .OrderBy(x => x.Attribute.ClassName)
+            .ThenBy(x => x.Attribute.FieldName)
+            .Select(x => new
+            {
+              PropertyPath = x.Attribute,
+            });
+
+          foreach (var key in propertyUsageData)
           {
-            PropertyPath = x.Key,
-            Count = x.Sum(y => y.Count),
-          });
+            var (className, fieldName) = key.PropertyPath;
+            propertyTable.AddRow(
+              FormatBasedOnUsageCount(0, $"{className}.{fieldName}"));
+          }
 
-      foreach (var usage in propertyUsageData)
-      {
-        var (className, fieldName) = usage.PropertyPath;
-        var totalUsages = usage.Count;
-        propertyTable.AddRow(
-            FormatBasedOnUsageCount(totalUsages, $"{className}.{fieldName}"),
-            FormatBasedOnUsageCount(totalUsages, totalUsages));
-      }
+          AnsiConsole.Write(propertyTable);
 
-      AnsiConsole.Write(propertyTable);
-    }
-    else // UsagesPerFile
-    {
-      var propertyTable = new Table()
-          .Border(TableBorder.Rounded)
-          .AddColumn(new TableColumn("[bold]Property[/]").LeftAligned())
-          .AddColumn(new TableColumn("[bold]File[/]").LeftAligned())
-          .AddColumn(new TableColumn("[bold]Usages[/]").RightAligned());
+          break;
+        }
 
-      var propertyUsageData = propertyUsage
-          .Select(u => new { File = u.Key.FilePath, PropertyPath = u.Key.Attribute, Count = u.Value })
-          .OrderBy(g => g.PropertyPath.ClassName)
-          .ThenBy(g => g.PropertyPath.FieldName)
-          .ThenBy(g => g.File);
+      case PropertyUsageFormat.TotalUsages:
+        {
+          var propertyTable = new Table()
+            .Border(TableBorder.Rounded)
+            .AddColumn(new TableColumn("[bold]Property[/]").LeftAligned())
+            .AddColumn(new TableColumn("[bold]Total Usages[/]").RightAligned());
 
-      foreach (var usage in propertyUsageData)
-      {
-        var (className, fieldName) = usage.PropertyPath;
-        propertyTable.AddRow(
-            FormatBasedOnUsageCount(usage.Count, $"{className}.{fieldName}"),
-            $"[blue]{usage.File}[/]",
-            FormatBasedOnUsageCount(usage.Count, usage.Count));
-      }
+          var propertyUsageData = propertyUsage
+            .Select(u => new { PropertyPath = u.Key.Attribute, Count = u.Value })
+            .GroupBy(x => x.PropertyPath)
+            .OrderBy(x => x.Key.ClassName)
+            .ThenBy(x => x.Key.FieldName)
+            .Select(x => new
+            {
+              PropertyPath = x.Key,
+              Count = x.Sum(y => y.Count),
+            });
 
-      AnsiConsole.Write(propertyTable);
+          foreach (var usage in propertyUsageData)
+          {
+            var (className, fieldName) = usage.PropertyPath;
+            var totalUsages = usage.Count;
+            propertyTable.AddRow(
+              FormatBasedOnUsageCount(totalUsages, $"{className}.{fieldName}"),
+              FormatBasedOnUsageCount(totalUsages, totalUsages));
+          }
+
+          AnsiConsole.Write(propertyTable);
+          break;
+        }
+
+      case PropertyUsageFormat.UsagesPerFile:
+        {
+          var propertyTable = new Table()
+            .Border(TableBorder.Rounded)
+            .AddColumn(new TableColumn("[bold]Property[/]").LeftAligned())
+            .AddColumn(new TableColumn("[bold]File[/]").LeftAligned())
+            .AddColumn(new TableColumn("[bold]Usages[/]").RightAligned());
+
+          var propertyUsageData = propertyUsage
+            .Select(u => new { File = u.Key.FilePath, PropertyPath = u.Key.Attribute, Count = u.Value })
+            .OrderBy(g => g.PropertyPath.ClassName)
+            .ThenBy(g => g.PropertyPath.FieldName)
+            .ThenBy(g => g.File);
+
+          foreach (var usage in propertyUsageData)
+          {
+            var (className, fieldName) = usage.PropertyPath;
+            propertyTable.AddRow(
+              FormatBasedOnUsageCount(usage.Count, $"{className}.{fieldName}"),
+              $"[blue]{usage.File}[/]",
+              FormatBasedOnUsageCount(usage.Count, usage.Count));
+          }
+
+          AnsiConsole.Write(propertyTable);
+          break;
+        }
     }
   }
 

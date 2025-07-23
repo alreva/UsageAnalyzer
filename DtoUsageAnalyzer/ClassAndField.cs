@@ -1,3 +1,7 @@
+// <copyright file="ClassAndField.cs" company="PlaceholderCompany">
+// Copyright (c) PlaceholderCompany. All rights reserved.
+// </copyright>
+
 namespace Analyze;
 
 public record ClassAndField(string ClassName, string FieldName) : IComparable<ClassAndField>

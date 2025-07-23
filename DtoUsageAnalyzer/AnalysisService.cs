@@ -1,3 +1,7 @@
+// <copyright file="AnalysisService.cs" company="PlaceholderCompany">
+// Copyright (c) PlaceholderCompany. All rights reserved.
+// </copyright>
+
 namespace Analyze;
 
 using System.Reflection;
@@ -95,7 +99,7 @@ public class AnalysisService(ILogger<AnalysisService> logger)
     return Nullable.GetUnderlyingType(type) != null;
   }
 
-  public Type[] GetDtoAssemblyTypes(string dtoAssemblyPath)
+  public static Type[] GetDtoAssemblyTypes(string dtoAssemblyPath)
   {
     // Path to the Dto.dll (adjust if needed)
     if (!File.Exists(dtoAssemblyPath))
@@ -142,7 +146,7 @@ public class AnalysisService(ILogger<AnalysisService> logger)
         continue;
       }
 
-      var compilation = await this.SetupProjectCompilation(project, selectedClass.Assembly.Location);
+      var compilation = await SetupProjectCompilation(project, selectedClass.Assembly.Location);
       if (compilation == null)
       {
         continue;
@@ -168,7 +172,7 @@ public class AnalysisService(ILogger<AnalysisService> logger)
     return propertyUsage;
   }
 
-  private async Task<Compilation?> SetupProjectCompilation(Project project, string assemblyPath)
+  private static async Task<Compilation?> SetupProjectCompilation(Project project, string assemblyPath)
   {
     var coreAssemblyPath = Path.GetDirectoryName(typeof(object).Assembly.Location)!;
     return (await project.GetCompilationAsync())?
