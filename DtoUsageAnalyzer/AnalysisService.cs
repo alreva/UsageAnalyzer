@@ -2,7 +2,9 @@ namespace DtoUsageAnalyzer;
 
 using System.Reflection;
 using System.Runtime.Loader;
+using System.Xml;
 using System.Xml.Linq;
+using DtoUsageAnalyzer.Exceptions;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
@@ -21,17 +23,29 @@ public class AnalysisService(ILogger<AnalysisService> logger)
   /// </summary>
   /// <param name="solutionDir">The directory containing the solution file.</param>
   /// <returns>The target framework moniker (e.g., "net8.0"). Defaults to "net8.0" if not found.</returns>
+  /// <exception cref="InvalidAnalysisInputException">Thrown when solutionDir is null or empty.</exception>
   public static string GetTargetFramework(string solutionDir)
   {
+    ValidateStringParameter(solutionDir, nameof(solutionDir));
+
     var propsPath = Path.Combine(solutionDir, "Directory.Build.props");
     if (!File.Exists(propsPath))
     {
       return "net8.0";
     }
 
-    var doc = XDocument.Load(propsPath);
-    var tfElement = doc.Descendants("TargetFramework").FirstOrDefault();
-    return tfElement?.Value ?? "net8.0";
+    try
+    {
+      var doc = XDocument.Load(propsPath);
+      var tfElement = doc.Descendants("TargetFramework").FirstOrDefault();
+      return tfElement?.Value ?? "net8.0";
+    }
+    catch (Exception ex) when (ex is XmlException || ex is IOException)
+    {
+      throw new AnalysisException(
+        $"Failed to read Directory.Build.props at '{propsPath}'. " +
+        "Ensure the file is valid XML and accessible.", ex);
+    }
   }
 
   /// <summary>
@@ -45,6 +59,7 @@ public class AnalysisService(ILogger<AnalysisService> logger)
   /// - Type: The declaring type of the property
   /// - FullPath: The full dotted path to the property (e.g., "Address.City", "SocialMedia.Twitter").
   /// </returns>
+  /// <exception cref="InvalidAnalysisInputException">Thrown when type is null.</exception>
   /// <example>
   /// For a User type with nested Address, this returns paths like:
   /// - "Name" (primitive property)
@@ -53,6 +68,8 @@ public class AnalysisService(ILogger<AnalysisService> logger)
   /// </example>
   public static List<(PropertyInfo Property, Type Type, string FullPath)> GetDeepProperties(Type type, string prefix = "")
   {
+    ValidateObjectParameter(type, nameof(type));
+
     var properties = new List<(PropertyInfo Property, Type Type, string FullPath)>();
 
     foreach (var prop in type.GetProperties())
@@ -147,7 +164,8 @@ public class AnalysisService(ILogger<AnalysisService> logger)
   /// </summary>
   /// <param name="dtoAssemblyPath">Absolute path to the compiled DTO assembly (.dll file).</param>
   /// <returns>Array of Type objects representing DTO classes found in the assembly.</returns>
-  /// <exception cref="FileNotFoundException">Thrown when the assembly file doesn't exist at the specified path.</exception>
+  /// <exception cref="InvalidAnalysisInputException">Thrown when dtoAssemblyPath is null or empty.</exception>
+  /// <exception cref="AssemblyLoadException">Thrown when the assembly file doesn't exist or contains no DTO types.</exception>
   /// <example>
   /// <code>
   /// var types = GetDtoAssemblyTypes("/path/to/Dto.dll");
@@ -160,16 +178,33 @@ public class AnalysisService(ILogger<AnalysisService> logger)
   /// </remarks>
   public static Type[] GetDtoAssemblyTypes(string dtoAssemblyPath)
   {
-    // Path to the Dto.dll (adjust if needed)
+    ValidateStringParameter(dtoAssemblyPath, nameof(dtoAssemblyPath));
+
     if (!File.Exists(dtoAssemblyPath))
     {
-      throw new FileNotFoundException($"Dto.dll not found at {dtoAssemblyPath}. Please build the Dto project first.");
+      throw AssemblyLoadException.FileNotFound(dtoAssemblyPath);
     }
 
-    var assembly = AssemblyLoadContext.Default.LoadFromAssemblyPath(dtoAssemblyPath);
-    return assembly.GetTypes()
-        .Where(t => t is { IsClass: true, Namespace: "Dto" })
-        .ToArray();
+    try
+    {
+      var assembly = AssemblyLoadContext.Default.LoadFromAssemblyPath(dtoAssemblyPath);
+      var types = assembly.GetTypes()
+          .Where(t => t is { IsClass: true, Namespace: "Dto" })
+          .ToArray();
+
+      if (types.Length == 0)
+      {
+        throw AssemblyLoadException.NoTypesFound(dtoAssemblyPath, "Dto");
+      }
+
+      return types;
+    }
+    catch (Exception ex) when (ex is BadImageFormatException || ex is FileLoadException)
+    {
+      throw new AssemblyLoadException(
+        dtoAssemblyPath,
+        "Assembly file is corrupted or not a valid .NET assembly.", ex);
+    }
   }
 
   /// <summary>
@@ -187,8 +222,8 @@ public class AnalysisService(ILogger<AnalysisService> logger)
   /// - Value: Number of times the property is accessed in that location
   /// Properties with 0 usage are included to identify unused properties.
   /// </returns>
-  /// <exception cref="FileNotFoundException">Thrown when the solution file doesn't exist.</exception>
-  /// <exception cref="InvalidOperationException">Thrown when solution analysis fails.</exception>
+  /// <exception cref="InvalidAnalysisInputException">Thrown when input parameters are invalid.</exception>
+  /// <exception cref="SolutionLoadException">Thrown when the solution file cannot be loaded or analyzed.</exception>
   /// <example>
   /// <code>
   /// var service = new AnalysisService(logger);
@@ -207,6 +242,14 @@ public class AnalysisService(ILogger<AnalysisService> logger)
       Type selectedClass,
       bool shouldSkipTestProjects)
   {
+    ValidateStringParameter(solutionPath, nameof(solutionPath));
+    ValidateObjectParameter(selectedClass, nameof(selectedClass));
+
+    if (!File.Exists(solutionPath))
+    {
+      throw SolutionLoadException.FileNotFound(solutionPath);
+    }
+
     logger.LogDebug("Starting analysis for class: {SelectedClassFullName}", selectedClass.FullName);
     var propertyUsage = new Dictionary<UsageKey, int>();
 
@@ -278,20 +321,41 @@ public class AnalysisService(ILogger<AnalysisService> logger)
 
   private Solution LoadSolutionWorkspace(string solutionPath)
   {
-    using var workspace = new AdhocWorkspace(MefHostServices.Create(MefHostServices.DefaultAssemblies));
-    workspace.WorkspaceFailed += (_, args) =>
+    try
     {
-      logger.LogWarning("Workspace failed: {Diagnostic}", args.Diagnostic);
-    };
-    var projectPaths = GetProjectPathsFromSolution(solutionPath);
-    foreach (var projectPath in projectPaths)
-    {
-      this.LoadProjectIntoWorkspace(workspace, projectPath.Replace("\\", "/"));
-    }
+      using var workspace = new AdhocWorkspace(MefHostServices.Create(MefHostServices.DefaultAssemblies));
+      workspace.WorkspaceFailed += (_, args) =>
+      {
+        logger.LogWarning("Workspace failed: {Diagnostic}", args.Diagnostic);
+      };
 
-    var solution = workspace.CurrentSolution;
-    logger.LogDebug("Loaded solution with {ProjectCount} projects.", solution.Projects.Count());
-    return solution;
+      var projectPaths = GetProjectPathsFromSolution(solutionPath);
+      if (projectPaths.Count == 0)
+      {
+        throw SolutionLoadException.NoProjects(solutionPath);
+      }
+
+      foreach (var projectPath in projectPaths)
+      {
+        this.LoadProjectIntoWorkspace(workspace, projectPath.Replace("\\", "/"));
+      }
+
+      var solution = workspace.CurrentSolution;
+      logger.LogDebug("Loaded solution with {ProjectCount} projects.", solution.Projects.Count());
+
+      if (!solution.Projects.Any())
+      {
+        throw SolutionLoadException.NoProjects(solutionPath);
+      }
+
+      return solution;
+    }
+    catch (Exception ex) when (!(ex is SolutionLoadException))
+    {
+      throw new SolutionLoadException(
+        solutionPath,
+        "Unexpected error during solution loading. Check that all projects build successfully.", ex);
+    }
   }
 
   private async Task AnalyzeProjectDocuments(
@@ -460,5 +524,33 @@ public class AnalysisService(ILogger<AnalysisService> logger)
     var typeInfo = model.GetTypeInfo(expression);
     var type = typeInfo.Type;
     return new ClassAndField(type is null ? string.Empty : type.Name, fieldName);
+  }
+
+  /// <summary>
+  /// Validates that a string parameter is not null or empty.
+  /// </summary>
+  /// <param name="value">The parameter value to validate.</param>
+  /// <param name="parameterName">The name of the parameter being validated.</param>
+  /// <exception cref="InvalidAnalysisInputException">Thrown when the parameter is null or empty.</exception>
+  private static void ValidateStringParameter(string? value, string parameterName)
+  {
+    if (string.IsNullOrEmpty(value))
+    {
+      throw InvalidAnalysisInputException.NullOrEmpty(parameterName);
+    }
+  }
+
+  /// <summary>
+  /// Validates that an object parameter is not null.
+  /// </summary>
+  /// <param name="value">The parameter value to validate.</param>
+  /// <param name="parameterName">The name of the parameter being validated.</param>
+  /// <exception cref="InvalidAnalysisInputException">Thrown when the parameter is null.</exception>
+  private static void ValidateObjectParameter(object? value, string parameterName)
+  {
+    if (value is null)
+    {
+      throw InvalidAnalysisInputException.Null(parameterName);
+    }
   }
 }
