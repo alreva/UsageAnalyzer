@@ -2,6 +2,24 @@
   <PropertyGroup>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    
+    <!-- NuGet Package Metadata -->
+    <PackageId>DtoUsageAnalyzer</PackageId>
+    <PackageVersion>1.0.0</PackageVersion>
+    <Title>DTO Usage Analyzer</Title>
+    <Authors>UsageAnalyzer Team</Authors>
+    <Description>A Roslyn-based library for analyzing DTO property usage across .NET solutions. Provides static code analysis to identify property access patterns and unused properties.</Description>
+    <PackageTags>roslyn;code-analysis;dto;static-analysis;csharp</PackageTags>
+    <PackageProjectUrl>https://github.com/alreva/UsageAnalyzer</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/alreva/UsageAnalyzer</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.Build.Tasks.Core" />
@@ -9,5 +27,9 @@
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp.Workspaces" />
     <PackageReference Include="Microsoft.CodeAnalysis.Workspaces.MSBuild" />
     <PackageReference Include="Microsoft.Extensions.Logging" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="..\..\README.md" Pack="true" PackagePath="\" />
   </ItemGroup>
 </Project>

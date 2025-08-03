@@ -1,3 +1,5 @@
+namespace DtoUsageAnalyzer;
+
 using System.Reflection;
 using System.Runtime.Loader;
 using System.Xml.Linq;
@@ -8,10 +10,17 @@ using Microsoft.CodeAnalysis.Host.Mef;
 using Microsoft.CodeAnalysis.Text;
 using Microsoft.Extensions.Logging;
 
-namespace DtoUsageAnalyzer;
-
+/// <summary>
+/// Provides Roslyn-based static code analysis for DTO property usage across .NET solutions.
+/// </summary>
+/// <param name="logger">Logger instance for diagnostic information during analysis.</param>
 public class AnalysisService(ILogger<AnalysisService> logger)
 {
+  /// <summary>
+  /// Determines the target framework for a solution by reading Directory.Build.props.
+  /// </summary>
+  /// <param name="solutionDir">The directory containing the solution file.</param>
+  /// <returns>The target framework moniker (e.g., "net8.0"). Defaults to "net8.0" if not found.</returns>
   public static string GetTargetFramework(string solutionDir)
   {
     var propsPath = Path.Combine(solutionDir, "Directory.Build.props");
@@ -25,6 +34,23 @@ public class AnalysisService(ILogger<AnalysisService> logger)
     return tfElement?.Value ?? "net8.0";
   }
 
+  /// <summary>
+  /// Recursively discovers all properties in a type hierarchy, including nested objects and collections.
+  /// </summary>
+  /// <param name="type">The root type to analyze for properties.</param>
+  /// <param name="prefix">Optional prefix for nested property paths (used internally for recursion).</param>
+  /// <returns>
+  /// A list of tuples containing:
+  /// - Property: The PropertyInfo of the discovered property
+  /// - Type: The declaring type of the property
+  /// - FullPath: The full dotted path to the property (e.g., "Address.City", "SocialMedia.Twitter").
+  /// </returns>
+  /// <example>
+  /// For a User type with nested Address, this returns paths like:
+  /// - "Name" (primitive property)
+  /// - "Address.City" (nested object property)
+  /// - "SocialMedia.Twitter" (nested object property).
+  /// </example>
   public static List<(PropertyInfo Property, Type Type, string FullPath)> GetDeepProperties(Type type, string prefix = "")
   {
     var properties = new List<(PropertyInfo Property, Type Type, string FullPath)>();
@@ -68,6 +94,18 @@ public class AnalysisService(ILogger<AnalysisService> logger)
     return properties;
   }
 
+  /// <summary>
+  /// Determines if a type is a primitive type, string, or an array/collection of primitives.
+  /// </summary>
+  /// <param name="type">The type to check.</param>
+  /// <returns>
+  /// True if the type is a primitive (int, bool, etc.), string, decimal, DateTime,
+  /// or an array/IEnumerable of primitives; otherwise false.
+  /// </returns>
+  /// <example>
+  /// Returns true for: int, string, DateTime, int[], List&lt;string&gt;
+  /// Returns false for: custom classes, complex objects.
+  /// </example>
   public static bool IsPrimitiveOrArrayOfPrimitives(Type type)
   {
     if (type.IsPrimitive || type == typeof(string) || type == typeof(decimal) || type == typeof(DateTime))
@@ -90,11 +128,36 @@ public class AnalysisService(ILogger<AnalysisService> logger)
     return false;
   }
 
+  /// <summary>
+  /// Checks if a type is a nullable value type (e.g., int?, DateTime?).
+  /// </summary>
+  /// <param name="type">The type to check.</param>
+  /// <returns>True if the type is Nullable&lt;T&gt;; otherwise false.</returns>
+  /// <example>
+  /// Returns true for: int?, DateTime?, bool?
+  /// Returns false for: int, string, object (reference types).
+  /// </example>
   public static bool IsNullable(Type type)
   {
     return Nullable.GetUnderlyingType(type) != null;
   }
 
+  /// <summary>
+  /// Loads types from a DTO assembly file and filters for classes in the "Dto" namespace.
+  /// </summary>
+  /// <param name="dtoAssemblyPath">Absolute path to the compiled DTO assembly (.dll file).</param>
+  /// <returns>Array of Type objects representing DTO classes found in the assembly.</returns>
+  /// <exception cref="FileNotFoundException">Thrown when the assembly file doesn't exist at the specified path.</exception>
+  /// <example>
+  /// <code>
+  /// var types = GetDtoAssemblyTypes("/path/to/Dto.dll");
+  /// // Returns types like UserEventDto, AddressDto, etc.
+  /// </code>
+  /// </example>
+  /// <remarks>
+  /// This method currently filters for types in the "Dto" namespace only.
+  /// Ensure the DTO project is built before calling this method.
+  /// </remarks>
   public static Type[] GetDtoAssemblyTypes(string dtoAssemblyPath)
   {
     // Path to the Dto.dll (adjust if needed)
@@ -109,6 +172,36 @@ public class AnalysisService(ILogger<AnalysisService> logger)
         .ToArray();
   }
 
+  /// <summary>
+  /// Analyzes property usage for a specific DTO class across all projects in a solution.
+  /// </summary>
+  /// <param name="solutionPath">Absolute path to the .sln file to analyze.</param>
+  /// <param name="selectedClass">The DTO class type to analyze for property usage patterns.</param>
+  /// <param name="shouldSkipTestProjects">
+  /// If true, excludes projects ending with "Tests" from analysis.
+  /// Also excludes "Analyze" and "Dto" projects by default.
+  /// </param>
+  /// <returns>
+  /// A dictionary mapping usage locations to occurrence counts:
+  /// - Key: UsageKey containing file path and property information
+  /// - Value: Number of times the property is accessed in that location
+  /// Properties with 0 usage are included to identify unused properties.
+  /// </returns>
+  /// <exception cref="FileNotFoundException">Thrown when the solution file doesn't exist.</exception>
+  /// <exception cref="InvalidOperationException">Thrown when solution analysis fails.</exception>
+  /// <example>
+  /// <code>
+  /// var service = new AnalysisService(logger);
+  /// var usage = await service.AnalyzeUsageAsync(
+  ///     "/path/to/solution.sln",
+  ///     typeof(UserEventDto),
+  ///     skipTests: true);
+  ///
+  /// // Results show property usage like:
+  /// // { FilePath: "UserProcessor.cs", Property: "User.Name" } -> 3 occurrences
+  /// // { FilePath: "N/A", Property: "User.CreatedAt" } -> 0 occurrences (unused)
+  /// </code>
+  /// </example>
   public async Task<Dictionary<UsageKey, int>> AnalyzeUsageAsync(
       string solutionPath,
       Type selectedClass,
