@@ -1,7 +1,6 @@
-using DtoUsageAnalyzer;
-
 namespace Analyze;
 
+using DtoUsageAnalyzer;
 using Microsoft.Extensions.Logging;
 using Spectre.Console;
 

@@ -33,7 +33,7 @@ public class SolutionLoadException : AnalysisException
   {
     return new SolutionLoadException(
       solutionPath,
-        "Solution file not found. Verify the path is correct and the file exists.");
+      "Solution file not found. Verify the path is correct and the file exists.");
   }
 
   /// <summary>
@@ -45,6 +45,6 @@ public class SolutionLoadException : AnalysisException
   {
     return new SolutionLoadException(
       solutionPath,
-        "No projects found to analyze. The solution may be empty or all projects are being skipped.");
+      "No projects found to analyze. The solution may be empty or all projects are being skipped.");
   }
 }

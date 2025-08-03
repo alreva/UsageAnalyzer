@@ -76,7 +76,7 @@ public class UserEventDtoTests
                     {
                         Action = "viewProduct",
                         ProductId = "prod123",
-                        Timestamp = DateTime.Parse("2023-09-30T10:05:00Z")
+                        Timestamp = DateTime.Parse("2023-09-30T10:05:00Z"),
                     },
                 },
       },

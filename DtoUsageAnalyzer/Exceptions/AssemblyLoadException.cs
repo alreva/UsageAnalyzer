@@ -33,7 +33,7 @@ public class AssemblyLoadException : AnalysisException
   {
     return new AssemblyLoadException(
       assemblyPath,
-        "Assembly file not found. Build the project first using 'dotnet build'.");
+      "Assembly file not found. Build the project first using 'dotnet build'.");
   }
 
   /// <summary>
@@ -46,7 +46,7 @@ public class AssemblyLoadException : AnalysisException
   {
     return new AssemblyLoadException(
       assemblyPath,
-        $"No DTO classes found in namespace '{namespaceName}'. " +
+      $"No DTO classes found in namespace '{namespaceName}'. " +
         "Verify the namespace contains public classes.");
   }
 }

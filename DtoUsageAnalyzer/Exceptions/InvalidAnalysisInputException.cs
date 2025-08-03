@@ -31,7 +31,7 @@ public class InvalidAnalysisInputException : AnalysisException
   {
     return new InvalidAnalysisInputException(
       parameterName,
-        "Parameter cannot be null or empty.");
+      "Parameter cannot be null or empty.");
   }
 
   /// <summary>
@@ -43,7 +43,7 @@ public class InvalidAnalysisInputException : AnalysisException
   {
     return new InvalidAnalysisInputException(
       parameterName,
-        "Parameter cannot be null.");
+      "Parameter cannot be null.");
   }
 
   /// <summary>
@@ -56,6 +56,6 @@ public class InvalidAnalysisInputException : AnalysisException
   {
     return new InvalidAnalysisInputException(
       parameterName,
-        $"Path '{path}' is not a valid absolute path.");
+      $"Path '{path}' is not a valid absolute path.");
   }
 }
