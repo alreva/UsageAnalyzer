@@ -117,8 +117,8 @@ public class AnalysisServiceTests
         true);
 
     var aggregated = result
-        .GroupBy(r => r.Key.Attribute)
-        .ToDictionary(g => g.Key, g => g.Sum(x => x.Value));
+        .GroupBy(r => r.Property.Attribute)
+        .ToDictionary(g => g.Key, g => g.Sum(x => x.UsageCount));
 
     Assert.Equal(2, aggregated[new ClassAndField("Address", "ZipCode")]);
     Assert.Equal(2, aggregated[new ClassAndField("User", "FavoriteCategories")]);

@@ -116,7 +116,7 @@ public class ConsoleUi(ILogger logger)
     throw new FileNotFoundException("No solution file found in current or parent directory.");
   }
 
-  public void DisplayResults(Dictionary<UsageKey, int> propertyUsage, PropertyUsageFormat propertyUsageFormat)
+  public void DisplayResults(IReadOnlyList<PropertyUsage> propertyUsage, PropertyUsageFormat propertyUsageFormat)
   {
     // Property Usage Table
     AnsiConsole.MarkupLine("\n[bold blue]Property Usage Analysis[/]");
@@ -129,8 +129,8 @@ public class ConsoleUi(ILogger logger)
             .AddColumn(new TableColumn("[bold]Property[/]").LeftAligned());
 
           var propertyUsageData = propertyUsage
-            .Where(u => u.Value == 0)
-            .Select(u => u.Key)
+            .Where(u => u.UsageCount == 0)
+            .Select(u => u.Property)
             .Distinct()
             .OrderBy(x => x.Attribute.ClassName)
             .ThenBy(x => x.Attribute.FieldName)
@@ -159,7 +159,7 @@ public class ConsoleUi(ILogger logger)
             .AddColumn(new TableColumn("[bold]Total Usages[/]").RightAligned());
 
           var propertyUsageData = propertyUsage
-            .Select(u => new { PropertyPath = u.Key.Attribute, Count = u.Value })
+            .Select(u => new { PropertyPath = u.Property.Attribute, Count = u.UsageCount })
             .GroupBy(x => x.PropertyPath)
             .OrderBy(x => x.Key.ClassName)
             .ThenBy(x => x.Key.FieldName)
@@ -191,7 +191,7 @@ public class ConsoleUi(ILogger logger)
             .AddColumn(new TableColumn("[bold]Usages[/]").RightAligned());
 
           var propertyUsageData = propertyUsage
-            .Select(u => new { File = u.Key.FilePath, PropertyPath = u.Key.Attribute, Count = u.Value })
+            .Select(u => new { File = u.Property.FilePath, PropertyPath = u.Property.Attribute, Count = u.UsageCount })
             .OrderBy(g => g.PropertyPath.ClassName)
             .ThenBy(g => g.PropertyPath.FieldName)
             .ThenBy(g => g.File);

@@ -284,9 +284,9 @@ public class AnalysisService(ILogger<AnalysisService> logger)
   /// Also excludes "Analyze" and "Dto" projects by default.
   /// </param>
   /// <returns>
-  /// A dictionary mapping usage locations to occurrence counts:
-  /// - Key: UsageKey containing file path and property information
-  /// - Value: Number of times the property is accessed in that location
+  /// A collection of property usage data where each item contains:
+  /// - Property: UsageKey with file path and property information
+  /// - UsageCount: Number of times the property is accessed in that location
   /// Properties with 0 usage are included to identify unused properties.
   /// </returns>
   /// <exception cref="InvalidAnalysisInputException">Thrown when input parameters are invalid.</exception>
@@ -294,17 +294,18 @@ public class AnalysisService(ILogger<AnalysisService> logger)
   /// <example>
   /// <code>
   /// var service = new AnalysisService(logger);
-  /// var usage = await service.AnalyzeUsageAsync(
+  /// var results = await service.AnalyzeUsageAsync(
   ///     "/path/to/solution.sln",
   ///     typeof(UserEventDto),
   ///     skipTests: true);
   ///
-  /// // Results show property usage like:
-  /// // { FilePath: "UserProcessor.cs", Property: "User.Name" } -> 3 occurrences
-  /// // { FilePath: "N/A", Property: "User.CreatedAt" } -> 0 occurrences (unused)
+  /// foreach (var usage in results)
+  /// {
+  ///     Console.WriteLine($"{usage.Property.Attribute.ClassName}.{usage.Property.Attribute.FieldName}: {usage.UsageCount} usages");
+  /// }
   /// </code>
   /// </example>
-  public async Task<Dictionary<UsageKey, int>> AnalyzeUsageAsync(
+  public async Task<IReadOnlyList<PropertyUsage>> AnalyzeUsageAsync(
       string solutionPath,
       Type selectedClass,
       bool shouldSkipTestProjects)
@@ -382,15 +383,16 @@ public class AnalysisService(ILogger<AnalysisService> logger)
       propertyUsage.TryAdd(key, 0);
     }
 
-    var totalUsages = propertyUsage.Values.Sum();
-    var unusedProperties = propertyUsage.Count(kvp => kvp.Value == 0);
+    var results = propertyUsage.Select(kvp => new PropertyUsage(kvp.Key, kvp.Value)).ToList();
+    var totalUsages = results.Sum(r => r.UsageCount);
+    var unusedProperties = results.Count(r => r.UsageCount == 0);
 
     logger.LogInformation(
       "Analysis completed for class {ClassName} in solution {SolutionPath}. " +
       "PropertiesAnalyzed: {PropertyCount}, TotalUsages: {TotalUsages}, UnusedProperties: {UnusedProperties}, SkipTests: {SkipTests}",
-      selectedClass.Name, solutionPath, propertyUsage.Count, totalUsages, unusedProperties, shouldSkipTestProjects);
+      selectedClass.Name, solutionPath, results.Count, totalUsages, unusedProperties, shouldSkipTestProjects);
 
-    return propertyUsage;
+    return results;
   }
 
   private static async Task<Compilation?> SetupProjectCompilation(Project project, string assemblyPath)
