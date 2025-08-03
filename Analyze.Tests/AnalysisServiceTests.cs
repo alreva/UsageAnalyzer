@@ -1,10 +1,9 @@
-using DtoUsageAnalyzer;
-
 namespace Analyze.Tests;
 
 using System.IO;
 using Analyze;
 using Dto;
+using DtoUsageAnalyzer;
 using Microsoft.Extensions.Logging;
 
 public class AnalysisServiceTests
@@ -25,11 +24,12 @@ public class AnalysisServiceTests
   [Fact]
   public void GetDtoAssemblyTypes_ReturnsDtoTypes()
   {
+    var service = CreateService();
     var solutionPath = GetSolutionPath();
     var solutionDir = Path.GetDirectoryName(solutionPath)!;
-    var tf = AnalysisService.GetTargetFramework(solutionDir);
+    var tf = service.GetTargetFramework(solutionDir);
     var dtoAssemblyPath = Path.Combine(solutionDir, "Dto", "bin", "Debug", tf, "Dto.dll");
-    var types = AnalysisService.GetDtoAssemblyTypes(dtoAssemblyPath);
+    var types = service.GetDtoAssemblyTypes(dtoAssemblyPath);
     Assert.Contains(types, t => t.Name == nameof(UserEventDto));
   }
 
@@ -55,8 +55,9 @@ public class AnalysisServiceTests
   [Fact]
   public void GetDeepProperties_ReturnsNestedPaths()
   {
+    var service = CreateService();
     var uType = typeof(User);
-    var result = AnalysisService.GetDeepProperties(uType)!;
+    var result = service.GetDeepProperties(uType)!;
     var paths = result.Select(p => p.FullPath).ToList();
     Assert.Contains("Address.City", paths);
     Assert.Contains("SocialMedia.Twitter", paths);
@@ -66,11 +67,12 @@ public class AnalysisServiceTests
   [Fact]
   public void GetTargetFramework_ReturnsNet80WhenFileMissing()
   {
+    var service = CreateService();
     var temp = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
     Directory.CreateDirectory(temp);
     try
     {
-      var framework = AnalysisService.GetTargetFramework(temp);
+      var framework = service.GetTargetFramework(temp);
       Assert.Equal("net8.0", framework);
     }
     finally
@@ -82,6 +84,7 @@ public class AnalysisServiceTests
   [Fact]
   public void GetTargetFramework_ReadsValueFromProps()
   {
+    var service = CreateService();
     var temp = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
     Directory.CreateDirectory(temp);
     const string buildProps = """
@@ -94,7 +97,7 @@ public class AnalysisServiceTests
     File.WriteAllText(Path.Combine(temp, "Directory.Build.props"), buildProps);
     try
     {
-      var framework = AnalysisService.GetTargetFramework(temp);
+      var framework = service.GetTargetFramework(temp);
       Assert.Equal("net7.0", framework);
     }
     finally

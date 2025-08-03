@@ -1,8 +1,7 @@
-using DtoUsageAnalyzer;
-
 namespace Analyze;
 
 using System.IO;
+using DtoUsageAnalyzer;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -32,9 +31,9 @@ public class Program
 
       // Get all DTO classes
       var solutionDir = Path.GetDirectoryName(solutionPath)!;
-      var tf = AnalysisService.GetTargetFramework(solutionDir);
+      var tf = analysisService.GetTargetFramework(solutionDir);
       var dtoAssemblyPath = Path.Combine(solutionDir, "Dto", "bin", "Debug", tf, "Dto.dll");
-      var dtoClasses = AnalysisService.GetDtoAssemblyTypes(dtoAssemblyPath).ToList();
+      var dtoClasses = analysisService.GetDtoAssemblyTypes(dtoAssemblyPath).ToList();
       if (!dtoClasses.Any())
       {
         AnsiConsole.MarkupLine("[red]No DTO classes found in the Dto project.[/]");

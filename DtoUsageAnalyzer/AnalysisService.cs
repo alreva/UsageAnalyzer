@@ -24,13 +24,28 @@ public class AnalysisService(ILogger<AnalysisService> logger)
   /// <param name="solutionDir">The directory containing the solution file.</param>
   /// <returns>The target framework moniker (e.g., "net8.0"). Defaults to "net8.0" if not found.</returns>
   /// <exception cref="InvalidAnalysisInputException">Thrown when solutionDir is null or empty.</exception>
-  public static string GetTargetFramework(string solutionDir)
+  public string GetTargetFramework(string solutionDir)
   {
-    ValidateStringParameter(solutionDir, nameof(solutionDir));
+    try
+    {
+      ValidateStringParameter(solutionDir, nameof(solutionDir));
+    }
+    catch (InvalidAnalysisInputException ex)
+    {
+      logger.LogError(
+        "Parameter validation failed in {MethodName}. Parameter {ParameterName} {ValidationFailure}",
+        nameof(this.GetTargetFramework), nameof(solutionDir), "was null or empty");
+      throw;
+    }
 
     var propsPath = Path.Combine(solutionDir, "Directory.Build.props");
-    if (!File.Exists(propsPath))
+    var fileExists = File.Exists(propsPath);
+
+    if (!fileExists)
     {
+      logger.LogDebug(
+        "Directory.Build.props not found at {PropsPath}, using default framework {DefaultFramework}",
+        propsPath, "net8.0");
       return "net8.0";
     }
 
@@ -38,10 +53,19 @@ public class AnalysisService(ILogger<AnalysisService> logger)
     {
       var doc = XDocument.Load(propsPath);
       var tfElement = doc.Descendants("TargetFramework").FirstOrDefault();
-      return tfElement?.Value ?? "net8.0";
+      var framework = tfElement?.Value ?? "net8.0";
+
+      logger.LogDebug(
+        "Read target framework {TargetFramework} from {PropsPath}",
+        framework, propsPath);
+
+      return framework;
     }
     catch (Exception ex) when (ex is XmlException || ex is IOException)
     {
+      logger.LogError(ex, "Failed to read Directory.Build.props. PropsPath: {PropsPath}, FileExists: {FileExists}, ErrorType: {ErrorType}",
+        propsPath, fileExists, ex.GetType().Name);
+
       throw new AnalysisException(
         $"Failed to read Directory.Build.props at '{propsPath}'. " +
         "Ensure the file is valid XML and accessible.", ex);
@@ -66,11 +90,24 @@ public class AnalysisService(ILogger<AnalysisService> logger)
   /// - "Address.City" (nested object property)
   /// - "SocialMedia.Twitter" (nested object property).
   /// </example>
-  public static List<(PropertyInfo Property, Type Type, string FullPath)> GetDeepProperties(Type type, string prefix = "")
+  public List<(PropertyInfo Property, Type Type, string FullPath)> GetDeepProperties(Type type, string prefix = "")
   {
-    ValidateObjectParameter(type, nameof(type));
+    try
+    {
+      ValidateObjectParameter(type, nameof(type));
+    }
+    catch (InvalidAnalysisInputException ex)
+    {
+      logger.LogError(
+        "Parameter validation failed in {MethodName}. Parameter {ParameterName} {ValidationFailure}",
+        nameof(this.GetDeepProperties), nameof(type), "was null");
+      throw;
+    }
 
     var properties = new List<(PropertyInfo Property, Type Type, string FullPath)>();
+    logger.LogDebug(
+      "Starting deep property discovery for type {TypeName} with prefix '{Prefix}'",
+      type.Name, prefix ?? string.Empty);
 
     foreach (var prop in type.GetProperties())
     {
@@ -92,7 +129,7 @@ public class AnalysisService(ILogger<AnalysisService> logger)
         }
         else
         {
-          properties.AddRange(GetDeepProperties(itemProp.PropertyType, fullPath + ".Value"));
+          properties.AddRange(this.GetDeepProperties(itemProp.PropertyType, fullPath + ".Value"));
         }
 
         continue;
@@ -101,12 +138,16 @@ public class AnalysisService(ILogger<AnalysisService> logger)
       if (IsGenericList(propType))
       {
         var itemProp = propType.GetProperty("Item")!;
-        properties.AddRange(GetDeepProperties(itemProp.PropertyType, fullPath + ".Item"));
+        properties.AddRange(this.GetDeepProperties(itemProp.PropertyType, fullPath + ".Item"));
         continue;
       }
 
-      properties.AddRange(GetDeepProperties(propType, fullPath));
+      properties.AddRange(this.GetDeepProperties(propType, fullPath));
     }
+
+    logger.LogDebug(
+      "Completed deep property discovery for type {TypeName}. Found {PropertyCount} properties with prefix '{Prefix}'",
+      type.Name, properties.Count, prefix ?? string.Empty);
 
     return properties;
   }
@@ -176,17 +217,33 @@ public class AnalysisService(ILogger<AnalysisService> logger)
   /// This method currently filters for types in the "Dto" namespace only.
   /// Ensure the DTO project is built before calling this method.
   /// </remarks>
-  public static Type[] GetDtoAssemblyTypes(string dtoAssemblyPath)
+  public Type[] GetDtoAssemblyTypes(string dtoAssemblyPath)
   {
-    ValidateStringParameter(dtoAssemblyPath, nameof(dtoAssemblyPath));
-
-    if (!File.Exists(dtoAssemblyPath))
+    try
     {
+      ValidateStringParameter(dtoAssemblyPath, nameof(dtoAssemblyPath));
+    }
+    catch (InvalidAnalysisInputException ex)
+    {
+      logger.LogError(
+        "Parameter validation failed in {MethodName}. Parameter {ParameterName} {ValidationFailure}",
+        nameof(this.GetDtoAssemblyTypes), nameof(dtoAssemblyPath), "was null or empty");
+      throw;
+    }
+
+    var fileExists = File.Exists(dtoAssemblyPath);
+    if (!fileExists)
+    {
+      logger.LogError(
+        "Assembly file not found. AssemblyPath: {AssemblyPath}, ErrorType: {ErrorType}",
+        dtoAssemblyPath, "FileNotFound");
       throw AssemblyLoadException.FileNotFound(dtoAssemblyPath);
     }
 
     try
     {
+      logger.LogDebug("Loading DTO assembly from {AssemblyPath}", dtoAssemblyPath);
+
       var assembly = AssemblyLoadContext.Default.LoadFromAssemblyPath(dtoAssemblyPath);
       var types = assembly.GetTypes()
           .Where(t => t is { IsClass: true, Namespace: "Dto" })
@@ -194,13 +251,23 @@ public class AnalysisService(ILogger<AnalysisService> logger)
 
       if (types.Length == 0)
       {
+        logger.LogError(
+          "No DTO types found in assembly. AssemblyPath: {AssemblyPath}, Namespace: {Namespace}, TotalTypes: {TotalTypes}",
+          dtoAssemblyPath, "Dto", assembly.GetTypes().Length);
         throw AssemblyLoadException.NoTypesFound(dtoAssemblyPath, "Dto");
       }
+
+      logger.LogDebug(
+        "Successfully loaded {TypeCount} DTO types from {AssemblyPath}: {TypeNames}",
+        types.Length, dtoAssemblyPath, string.Join(", ", types.Select(t => t.Name)));
 
       return types;
     }
     catch (Exception ex) when (ex is BadImageFormatException || ex is FileLoadException)
     {
+      logger.LogError(ex, "Failed to load assembly. AssemblyPath: {AssemblyPath}, ErrorType: {ErrorType}, FileExists: {FileExists}",
+        dtoAssemblyPath, ex.GetType().Name, fileExists);
+
       throw new AssemblyLoadException(
         dtoAssemblyPath,
         "Assembly file is corrupted or not a valid .NET assembly.", ex);
@@ -242,11 +309,25 @@ public class AnalysisService(ILogger<AnalysisService> logger)
       Type selectedClass,
       bool shouldSkipTestProjects)
   {
-    ValidateStringParameter(solutionPath, nameof(solutionPath));
-    ValidateObjectParameter(selectedClass, nameof(selectedClass));
-
-    if (!File.Exists(solutionPath))
+    try
     {
+      ValidateStringParameter(solutionPath, nameof(solutionPath));
+      ValidateObjectParameter(selectedClass, nameof(selectedClass));
+    }
+    catch (InvalidAnalysisInputException ex)
+    {
+      logger.LogError(
+        "Parameter validation failed in {MethodName}. SolutionPath: {SolutionPath}, ClassName: {ClassName}",
+        nameof(this.AnalyzeUsageAsync), solutionPath ?? "null", selectedClass?.Name ?? "null");
+      throw;
+    }
+
+    var fileExists = File.Exists(solutionPath);
+    if (!fileExists)
+    {
+      logger.LogError(
+        "Solution file not found. SolutionPath: {SolutionPath}, ErrorType: {ErrorType}",
+        solutionPath, "FileNotFound");
       throw SolutionLoadException.FileNotFound(solutionPath);
     }
 
@@ -254,7 +335,7 @@ public class AnalysisService(ILogger<AnalysisService> logger)
     var propertyUsage = new Dictionary<UsageKey, int>();
 
     // Find property references
-    var deepProperties = GetDeepProperties(selectedClass);
+    var deepProperties = this.GetDeepProperties(selectedClass);
     logger.LogDebug(
         "Found {Count} deep properties in {CurrentTypeFullName}",
         deepProperties.Count,
@@ -301,6 +382,14 @@ public class AnalysisService(ILogger<AnalysisService> logger)
       propertyUsage.TryAdd(key, 0);
     }
 
+    var totalUsages = propertyUsage.Values.Sum();
+    var unusedProperties = propertyUsage.Count(kvp => kvp.Value == 0);
+
+    logger.LogInformation(
+      "Analysis completed for class {ClassName} in solution {SolutionPath}. " +
+      "PropertiesAnalyzed: {PropertyCount}, TotalUsages: {TotalUsages}, UnusedProperties: {UnusedProperties}, SkipTests: {SkipTests}",
+      selectedClass.Name, solutionPath, propertyUsage.Count, totalUsages, unusedProperties, shouldSkipTestProjects);
+
     return propertyUsage;
   }
 
@@ -321,30 +410,38 @@ public class AnalysisService(ILogger<AnalysisService> logger)
 
   private Solution LoadSolutionWorkspace(string solutionPath)
   {
+    logger.LogDebug("Loading solution workspace from {SolutionPath}", solutionPath);
+
     try
     {
       using var workspace = new AdhocWorkspace(MefHostServices.Create(MefHostServices.DefaultAssemblies));
       workspace.WorkspaceFailed += (_, args) =>
       {
-        logger.LogWarning("Workspace failed: {Diagnostic}", args.Diagnostic);
+        logger.LogWarning("Workspace diagnostic: {Diagnostic} for solution {SolutionPath}", args.Diagnostic, solutionPath);
       };
 
       var projectPaths = GetProjectPathsFromSolution(solutionPath);
+      logger.LogDebug("Found {ProjectPathCount} projects in solution {SolutionPath}", projectPaths.Count, solutionPath);
+
       if (projectPaths.Count == 0)
       {
+        logger.LogError("No projects found in solution {SolutionPath}", solutionPath);
         throw SolutionLoadException.NoProjects(solutionPath);
       }
 
       foreach (var projectPath in projectPaths)
       {
+        logger.LogDebug("Loading project {ProjectPath} into workspace", projectPath);
         this.LoadProjectIntoWorkspace(workspace, projectPath.Replace("\\", "/"));
       }
 
       var solution = workspace.CurrentSolution;
-      logger.LogDebug("Loaded solution with {ProjectCount} projects.", solution.Projects.Count());
+      var loadedProjectCount = solution.Projects.Count();
+      logger.LogInformation("Successfully loaded solution {SolutionPath} with {ProjectCount} projects", solutionPath, loadedProjectCount);
 
       if (!solution.Projects.Any())
       {
+        logger.LogError("No projects loaded into workspace for solution {SolutionPath}", solutionPath);
         throw SolutionLoadException.NoProjects(solutionPath);
       }
 
@@ -352,6 +449,8 @@ public class AnalysisService(ILogger<AnalysisService> logger)
     }
     catch (Exception ex) when (!(ex is SolutionLoadException))
     {
+      logger.LogError(ex, "Unexpected error loading solution workspace. SolutionPath: {SolutionPath}, ErrorType: {ErrorType}",
+        solutionPath, "UnexpectedError");
       throw new SolutionLoadException(
         solutionPath,
         "Unexpected error during solution loading. Check that all projects build successfully.", ex);
@@ -466,33 +565,49 @@ public class AnalysisService(ILogger<AnalysisService> logger)
   {
     if (!File.Exists(projectPath))
     {
-      logger.LogWarning("Project file not found: {ProjectPath}", projectPath);
+      logger.LogWarning(
+        "Project file not found during workspace loading. ProjectPath: {ProjectPath}, FileExists: {FileExists}",
+        projectPath, false);
       return;
     }
 
     var projectName = Path.GetFileNameWithoutExtension(projectPath);
-    logger.LogInformation("Loading project: {ProjectName} from {ProjectPath}", projectName, projectPath);
+    logger.LogDebug("Loading project into workspace. ProjectName: {ProjectName}, ProjectPath: {ProjectPath}", projectName, projectPath);
 
-    var projectInfo = ProjectInfo.Create(
-        ProjectId.CreateNewId(),
-        VersionStamp.Create(),
-        projectName,
-        projectName,
-        LanguageNames.CSharp);
-
-    var project = workspace.AddProject(projectInfo);
-
-    var documents = Directory.GetFiles(Path.GetDirectoryName(projectPath)!, "*.cs", SearchOption.AllDirectories);
-    foreach (var docPath in documents)
+    try
     {
-      var sourceText = SourceText.From(File.ReadAllText(docPath));
-      var documentInfo = DocumentInfo.Create(
-          DocumentId.CreateNewId(project.Id),
-          Path.GetFileName(docPath),
-          loader: TextLoader.From(TextAndVersion.Create(sourceText, VersionStamp.Create())),
-          filePath: docPath);
+      var projectInfo = ProjectInfo.Create(
+          ProjectId.CreateNewId(),
+          VersionStamp.Create(),
+          projectName,
+          projectName,
+          LanguageNames.CSharp);
 
-      workspace.AddDocument(documentInfo);
+      var project = workspace.AddProject(projectInfo);
+
+      var projectDirectory = Path.GetDirectoryName(projectPath)!;
+      var documents = Directory.GetFiles(projectDirectory, "*.cs", SearchOption.AllDirectories);
+      logger.LogDebug("Found {DocumentCount} C# files in project {ProjectName}", documents.Length, projectName);
+
+      foreach (var docPath in documents)
+      {
+        var sourceText = SourceText.From(File.ReadAllText(docPath));
+        var documentInfo = DocumentInfo.Create(
+            DocumentId.CreateNewId(project.Id),
+            Path.GetFileName(docPath),
+            loader: TextLoader.From(TextAndVersion.Create(sourceText, VersionStamp.Create())),
+            filePath: docPath);
+
+        workspace.AddDocument(documentInfo);
+      }
+
+      logger.LogDebug("Successfully loaded project {ProjectName} with {DocumentCount} documents", projectName, documents.Length);
+    }
+    catch (Exception ex)
+    {
+      logger.LogError(ex, "Failed to load project into workspace. ProjectName: {ProjectName}, ProjectPath: {ProjectPath}, ErrorType: {ErrorType}",
+        projectName, projectPath, "ProjectLoadError");
+      throw;
     }
   }
 
