@@ -6,11 +6,6 @@ namespace DtoUsageAnalyzer.Exceptions;
 public class SolutionLoadException : AnalysisException
 {
   /// <summary>
-  /// Gets the path to the solution file that failed to load.
-  /// </summary>
-  public string SolutionPath { get; }
-
-  /// <summary>
   /// Initializes a new instance of the <see cref="SolutionLoadException"/> class.
   /// </summary>
   /// <param name="solutionPath">The path to the solution file that failed to load.</param>
@@ -23,6 +18,11 @@ public class SolutionLoadException : AnalysisException
   {
     this.SolutionPath = solutionPath;
   }
+
+  /// <summary>
+  /// Gets the path to the solution file that failed to load.
+  /// </summary>
+  public string SolutionPath { get; }
 
   /// <summary>
   /// Creates a SolutionLoadException for when a solution file doesn't exist.

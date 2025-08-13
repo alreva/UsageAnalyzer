@@ -5,10 +5,10 @@
     
     <!-- NuGet Package Metadata -->
     <PackageId>DtoUsageAnalyzer</PackageId>
-    <PackageVersion>1.0.0</PackageVersion>
+    <PackageVersion>1.0.0-beta.1</PackageVersion>
     <Title>DTO Usage Analyzer</Title>
     <Authors>UsageAnalyzer Team</Authors>
-    <Description>A Roslyn-based library for analyzing DTO property usage across .NET solutions. Provides static code analysis to identify property access patterns and unused properties.</Description>
+    <Description>A Roslyn-based library for analyzing DTO property usage across .NET solutions. Provides static code analysis to identify property access patterns and unused properties. (Beta Release)</Description>
     <PackageTags>roslyn;code-analysis;dto;static-analysis;csharp</PackageTags>
     <PackageProjectUrl>https://github.com/alreva/UsageAnalyzer</PackageProjectUrl>
     <RepositoryUrl>https://github.com/alreva/UsageAnalyzer</RepositoryUrl>
@@ -30,6 +30,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <None Include="..\..\README.md" Pack="true" PackagePath="\" />
+    <None Include="..\README.md" Pack="true" PackagePath="\" />
   </ItemGroup>
 </Project>

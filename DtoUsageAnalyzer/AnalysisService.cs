@@ -18,6 +18,16 @@ using Microsoft.Extensions.Logging;
 /// <param name="logger">Logger instance for diagnostic information during analysis.</param>
 public class AnalysisService(ILogger<AnalysisService> logger)
 {
+  private const string DefaultTargetFramework = "net8.0";
+  private const string DtoNamespace = "Dto";
+  private const string TestProjectSuffix = "Tests";
+  private const string AnalyzeProjectName = "Analyze";
+  private const string DtoProjectName = "Dto";
+  private const string UnusedPropertyFilePath = "N/A";
+  private const string DirectoryBuildPropsFile = "Directory.Build.props";
+  private const string ObjDirectoryPath = "/obj/";
+  private const string BinDirectoryPath = "/bin/";
+
   /// <summary>
   /// Determines the target framework for a solution by reading Directory.Build.props.
   /// </summary>
@@ -26,34 +36,24 @@ public class AnalysisService(ILogger<AnalysisService> logger)
   /// <exception cref="InvalidAnalysisInputException">Thrown when solutionDir is null or empty.</exception>
   public string GetTargetFramework(string solutionDir)
   {
-    try
-    {
-      ValidateStringParameter(solutionDir, nameof(solutionDir));
-    }
-    catch (InvalidAnalysisInputException ex)
-    {
-      logger.LogError(
-        "Parameter validation failed in {MethodName}. Parameter {ParameterName} {ValidationFailure}",
-        nameof(this.GetTargetFramework), nameof(solutionDir), "was null or empty");
-      throw;
-    }
+    ValidateStringParameter(solutionDir, nameof(solutionDir));
 
-    var propsPath = Path.Combine(solutionDir, "Directory.Build.props");
+    var propsPath = Path.Combine(solutionDir, DirectoryBuildPropsFile);
     var fileExists = File.Exists(propsPath);
 
     if (!fileExists)
     {
       logger.LogDebug(
         "Directory.Build.props not found at {PropsPath}, using default framework {DefaultFramework}",
-        propsPath, "net8.0");
-      return "net8.0";
+        propsPath, DefaultTargetFramework);
+      return DefaultTargetFramework;
     }
 
     try
     {
       var doc = XDocument.Load(propsPath);
       var tfElement = doc.Descendants("TargetFramework").FirstOrDefault();
-      var framework = tfElement?.Value ?? "net8.0";
+      var framework = tfElement?.Value ?? DefaultTargetFramework;
 
       logger.LogDebug(
         "Read target framework {TargetFramework} from {PropsPath}",
@@ -92,22 +92,12 @@ public class AnalysisService(ILogger<AnalysisService> logger)
   /// </example>
   public List<(PropertyInfo Property, Type Type, string FullPath)> GetDeepProperties(Type type, string prefix = "")
   {
-    try
-    {
-      ValidateObjectParameter(type, nameof(type));
-    }
-    catch (InvalidAnalysisInputException ex)
-    {
-      logger.LogError(
-        "Parameter validation failed in {MethodName}. Parameter {ParameterName} {ValidationFailure}",
-        nameof(this.GetDeepProperties), nameof(type), "was null");
-      throw;
-    }
+    ValidateObjectParameter(type, nameof(type));
 
     var properties = new List<(PropertyInfo Property, Type Type, string FullPath)>();
     logger.LogDebug(
       "Starting deep property discovery for type {TypeName} with prefix '{Prefix}'",
-      type.Name, prefix ?? string.Empty);
+      type.Name, prefix);
 
     foreach (var prop in type.GetProperties())
     {
@@ -147,7 +137,7 @@ public class AnalysisService(ILogger<AnalysisService> logger)
 
     logger.LogDebug(
       "Completed deep property discovery for type {TypeName}. Found {PropertyCount} properties with prefix '{Prefix}'",
-      type.Name, properties.Count, prefix ?? string.Empty);
+      type.Name, properties.Count, prefix);
 
     return properties;
   }
@@ -219,17 +209,7 @@ public class AnalysisService(ILogger<AnalysisService> logger)
   /// </remarks>
   public Type[] GetDtoAssemblyTypes(string dtoAssemblyPath)
   {
-    try
-    {
-      ValidateStringParameter(dtoAssemblyPath, nameof(dtoAssemblyPath));
-    }
-    catch (InvalidAnalysisInputException ex)
-    {
-      logger.LogError(
-        "Parameter validation failed in {MethodName}. Parameter {ParameterName} {ValidationFailure}",
-        nameof(this.GetDtoAssemblyTypes), nameof(dtoAssemblyPath), "was null or empty");
-      throw;
-    }
+    ValidateStringParameter(dtoAssemblyPath, nameof(dtoAssemblyPath));
 
     var fileExists = File.Exists(dtoAssemblyPath);
     if (!fileExists)
@@ -246,15 +226,15 @@ public class AnalysisService(ILogger<AnalysisService> logger)
 
       var assembly = AssemblyLoadContext.Default.LoadFromAssemblyPath(dtoAssemblyPath);
       var types = assembly.GetTypes()
-          .Where(t => t is { IsClass: true, Namespace: "Dto" })
+          .Where(t => t is { IsClass: true, Namespace: DtoNamespace })
           .ToArray();
 
       if (types.Length == 0)
       {
         logger.LogError(
           "No DTO types found in assembly. AssemblyPath: {AssemblyPath}, Namespace: {Namespace}, TotalTypes: {TotalTypes}",
-          dtoAssemblyPath, "Dto", assembly.GetTypes().Length);
-        throw AssemblyLoadException.NoTypesFound(dtoAssemblyPath, "Dto");
+          dtoAssemblyPath, DtoNamespace, assembly.GetTypes().Length);
+        throw AssemblyLoadException.NoTypesFound(dtoAssemblyPath, DtoNamespace);
       }
 
       logger.LogDebug(
@@ -310,18 +290,8 @@ public class AnalysisService(ILogger<AnalysisService> logger)
       Type selectedClass,
       bool shouldSkipTestProjects)
   {
-    try
-    {
-      ValidateStringParameter(solutionPath, nameof(solutionPath));
-      ValidateObjectParameter(selectedClass, nameof(selectedClass));
-    }
-    catch (InvalidAnalysisInputException ex)
-    {
-      logger.LogError(
-        "Parameter validation failed in {MethodName}. SolutionPath: {SolutionPath}, ClassName: {ClassName}",
-        nameof(this.AnalyzeUsageAsync), solutionPath ?? "null", selectedClass?.Name ?? "null");
-      throw;
-    }
+    ValidateStringParameter(solutionPath, nameof(solutionPath));
+    ValidateObjectParameter(selectedClass, nameof(selectedClass));
 
     var fileExists = File.Exists(solutionPath);
     if (!fileExists)
@@ -347,14 +317,14 @@ public class AnalysisService(ILogger<AnalysisService> logger)
     foreach (var project in solution.Projects)
     {
       // Skip Test project
-      if (shouldSkipTestProjects && project.Name.EndsWith("Tests"))
+      if (shouldSkipTestProjects && project.Name.EndsWith(TestProjectSuffix, StringComparison.OrdinalIgnoreCase))
       {
         logger.LogInformation("Skipping test project {ProjectName}.", project.Name);
         continue;
       }
 
       // Skip Analyze project
-      if (project.Name is "Analyze" or "Dto")
+      if (project.Name is AnalyzeProjectName or DtoProjectName)
       {
         logger.LogInformation("Skipping {ProjectName} project.", project.Name);
         continue;
@@ -379,7 +349,7 @@ public class AnalysisService(ILogger<AnalysisService> logger)
         continue; // already exists
       }
 
-      UsageKey key = new("N/A", attribute);
+      UsageKey key = new(UnusedPropertyFilePath, attribute);
       propertyUsage.TryAdd(key, 0);
     }
 
@@ -469,8 +439,8 @@ public class AnalysisService(ILogger<AnalysisService> logger)
     foreach (var document in project.Documents)
     {
       var filePath = document.FilePath!;
-      if (filePath.Contains("/obj/", StringComparison.OrdinalIgnoreCase)
-          || filePath.Contains("/bin/"))
+      if (filePath.Contains(ObjDirectoryPath, StringComparison.OrdinalIgnoreCase)
+          || filePath.Contains(BinDirectoryPath, StringComparison.OrdinalIgnoreCase))
       {
         continue;
       }
@@ -609,7 +579,9 @@ public class AnalysisService(ILogger<AnalysisService> logger)
     {
       logger.LogError(ex, "Failed to load project into workspace. ProjectName: {ProjectName}, ProjectPath: {ProjectPath}, ErrorType: {ErrorType}",
         projectName, projectPath, "ProjectLoadError");
-      throw;
+
+      // Wrap with contextual information for better error handling upstream
+      throw new InvalidOperationException($"Failed to load project '{projectName}' from path '{projectPath}' into workspace. See inner exception for details.", ex);
     }
   }
 
@@ -619,7 +591,7 @@ public class AnalysisService(ILogger<AnalysisService> logger)
     var solutionDir = Path.GetDirectoryName(solutionPath)!;
 
     var projectLines = File.ReadAllLines(solutionPath)
-      .Where(line => line.Trim().StartsWith("Project(") && line.Contains(".csproj"));
+      .Where(line => line.Trim().StartsWith("Project(", StringComparison.OrdinalIgnoreCase) && line.Contains(".csproj", StringComparison.OrdinalIgnoreCase));
     foreach (var line in projectLines)
     {
       var parts = line.Split(',');

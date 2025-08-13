@@ -6,11 +6,6 @@ namespace DtoUsageAnalyzer.Exceptions;
 public class AssemblyLoadException : AnalysisException
 {
   /// <summary>
-  /// Gets the path to the assembly file that failed to load.
-  /// </summary>
-  public string AssemblyPath { get; }
-
-  /// <summary>
   /// Initializes a new instance of the <see cref="AssemblyLoadException"/> class.
   /// </summary>
   /// <param name="assemblyPath">The path to the assembly file that failed to load.</param>
@@ -23,6 +18,11 @@ public class AssemblyLoadException : AnalysisException
   {
     this.AssemblyPath = assemblyPath;
   }
+
+  /// <summary>
+  /// Gets the path to the assembly file that failed to load.
+  /// </summary>
+  public string AssemblyPath { get; }
 
   /// <summary>
   /// Creates an AssemblyLoadException for when an assembly file doesn't exist.

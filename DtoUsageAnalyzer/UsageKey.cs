@@ -43,23 +43,3 @@ public record UsageKey(string FilePath, ClassAndField Attribute) : IComparable<U
     return this.Attribute.CompareTo(other.Attribute);
   }
 }
-
-/// <summary>
-/// Represents property usage data, combining the property location with its usage count.
-/// </summary>
-/// <param name="Property">The unique key identifying where and which property is accessed.</param>
-/// <param name="UsageCount">The number of times this property is used in the specified location.</param>
-/// <example>
-/// <code>
-/// // Property used 5 times in UserProcessor.cs
-/// var usage1 = new PropertyUsage(
-///     new UsageKey("UserProcessor.cs", new ClassAndField("User", "Name")),
-///     5);
-///
-/// // Unused property
-/// var usage2 = new PropertyUsage(
-///     new UsageKey("N/A", new ClassAndField("User", "CreatedAt")),
-///     0);
-/// </code>
-/// </example>
-public record PropertyUsage(UsageKey Property, int UsageCount);

@@ -6,11 +6,6 @@ namespace DtoUsageAnalyzer.Exceptions;
 public class InvalidAnalysisInputException : AnalysisException
 {
   /// <summary>
-  /// Gets the name of the parameter that was invalid.
-  /// </summary>
-  public string ParameterName { get; }
-
-  /// <summary>
   /// Initializes a new instance of the <see cref="InvalidAnalysisInputException"/> class.
   /// </summary>
   /// <param name="parameterName">The name of the invalid parameter.</param>
@@ -21,6 +16,11 @@ public class InvalidAnalysisInputException : AnalysisException
   {
     this.ParameterName = parameterName;
   }
+
+  /// <summary>
+  /// Gets the name of the parameter that was invalid.
+  /// </summary>
+  public string ParameterName { get; }
 
   /// <summary>
   /// Creates an InvalidAnalysisInputException for null or empty string parameters.

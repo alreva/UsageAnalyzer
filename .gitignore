@@ -507,3 +507,6 @@ orleans.codegen.cs
 # Rider
 .idea/
 *.sln.iml
+
+# Claude Code guidance file - keep local only
+CLAUDE.md
