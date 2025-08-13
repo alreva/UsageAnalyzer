@@ -1,4 +1,4 @@
-namespace Analyze.Tests;
+namespace DtoUsageAnalyzer.Tests;
 
 using System.IO;
 using Analyze;
@@ -27,7 +27,7 @@ public class AnalysisServiceTests
     var service = CreateService();
     var solutionPath = GetSolutionPath();
     var solutionDir = Path.GetDirectoryName(solutionPath)!;
-    var tf = service.GetTargetFramework(solutionDir);
+    var tf = ProjectHelper.GetTargetFramework(solutionDir);
     var dtoAssemblyPath = Path.Combine(solutionDir, "Dto", "bin", "Debug", tf, "Dto.dll");
     var types = service.GetDtoAssemblyTypes(dtoAssemblyPath);
     Assert.Contains(types, t => t.Name == nameof(UserEventDto));
@@ -62,48 +62,6 @@ public class AnalysisServiceTests
     Assert.Contains("Address.City", paths);
     Assert.Contains("SocialMedia.Twitter", paths);
     Assert.Contains("DeviceInfo.IpAddress", paths);
-  }
-
-  [Fact]
-  public void GetTargetFramework_ReturnsNet80WhenFileMissing()
-  {
-    var service = CreateService();
-    var temp = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
-    Directory.CreateDirectory(temp);
-    try
-    {
-      var framework = service.GetTargetFramework(temp);
-      Assert.Equal("net8.0", framework);
-    }
-    finally
-    {
-      Directory.Delete(temp, true);
-    }
-  }
-
-  [Fact]
-  public void GetTargetFramework_ReadsValueFromProps()
-  {
-    var service = CreateService();
-    var temp = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
-    Directory.CreateDirectory(temp);
-    const string buildProps = """
-                              <Project>
-                                <PropertyGroup>
-                                  <TargetFramework>net7.0</TargetFramework>
-                                </PropertyGroup>
-                              </Project>
-                              """;
-    File.WriteAllText(Path.Combine(temp, "Directory.Build.props"), buildProps);
-    try
-    {
-      var framework = service.GetTargetFramework(temp);
-      Assert.Equal("net7.0", framework);
-    }
-    finally
-    {
-      Directory.Delete(temp, true);
-    }
   }
 
   [Fact]

@@ -21,7 +21,9 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Analyze\Analyze.csproj"/>
+    <ProjectReference Include="..\DtoUsageAnalyzer\DtoUsageAnalyzer.csproj"/>
+    <ProjectReference Include="..\Dto\Dto.csproj" />
+    <ProjectReference Include="..\Analyze\Analyze.csproj" />
   </ItemGroup>
 
 </Project>

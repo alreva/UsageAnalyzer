@@ -31,7 +31,7 @@ public class Program
 
       // Get all DTO classes
       var solutionDir = Path.GetDirectoryName(solutionPath)!;
-      var tf = analysisService.GetTargetFramework(solutionDir);
+      var tf = ProjectHelper.GetTargetFramework(solutionDir);
       var dtoAssemblyPath = Path.Combine(solutionDir, "Dto", "bin", "Debug", tf, "Dto.dll");
       var dtoClasses = analysisService.GetDtoAssemblyTypes(dtoAssemblyPath).ToList();
       if (!dtoClasses.Any())

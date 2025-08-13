@@ -544,6 +544,9 @@
           "Spectre.Console": "[0.50.1-preview.0.10, )"
         }
       },
+      "dto": {
+        "type": "Project"
+      },
       "dtousageanalyzer": {
         "type": "Project",
         "dependencies": {

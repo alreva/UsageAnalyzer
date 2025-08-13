@@ -2,8 +2,6 @@ namespace DtoUsageAnalyzer;
 
 using System.Reflection;
 using System.Runtime.Loader;
-using System.Xml;
-using System.Xml.Linq;
 using DtoUsageAnalyzer.Exceptions;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
@@ -18,13 +16,11 @@ using Microsoft.Extensions.Logging;
 /// <param name="logger">Logger instance for diagnostic information during analysis.</param>
 public class AnalysisService(ILogger<AnalysisService> logger)
 {
-  private const string DefaultTargetFramework = "net8.0";
   private const string DtoNamespace = "Dto";
   private const string TestProjectSuffix = "Tests";
   private const string AnalyzeProjectName = "Analyze";
   private const string DtoProjectName = "Dto";
   private const string UnusedPropertyFilePath = "N/A";
-  private const string DirectoryBuildPropsFile = "Directory.Build.props";
   private const string ObjDirectoryPath = "/obj/";
   private const string BinDirectoryPath = "/bin/";
 
@@ -74,57 +70,6 @@ public class AnalysisService(ILogger<AnalysisService> logger)
   public static bool IsNullable(Type type)
   {
     return Nullable.GetUnderlyingType(type) != null;
-  }
-
-  /// <summary>
-  /// Determines the target framework for a solution by reading Directory.Build.props.
-  /// </summary>
-  /// <param name="solutionDir">The directory containing the solution file.</param>
-  /// <returns>The target framework moniker (e.g., "net8.0"). Defaults to "net8.0" if not found.</returns>
-  /// <exception cref="InvalidAnalysisInputException">Thrown when solutionDir is null or empty.</exception>
-  public string GetTargetFramework(string solutionDir)
-  {
-    ValidateStringParameter(solutionDir, nameof(solutionDir));
-
-    var propsPath = Path.Combine(solutionDir, DirectoryBuildPropsFile);
-    var fileExists = File.Exists(propsPath);
-
-    if (!fileExists)
-    {
-      logger.LogDebug(
-        "Directory.Build.props not found at {PropsPath}, using default framework {DefaultFramework}",
-        propsPath,
-        DefaultTargetFramework);
-      return DefaultTargetFramework;
-    }
-
-    try
-    {
-      var doc = XDocument.Load(propsPath);
-      var tfElement = doc.Descendants("TargetFramework").FirstOrDefault();
-      var framework = tfElement?.Value ?? DefaultTargetFramework;
-
-      logger.LogDebug(
-        "Read target framework {TargetFramework} from {PropsPath}",
-        framework,
-        propsPath);
-
-      return framework;
-    }
-    catch (Exception ex) when (ex is XmlException || ex is IOException)
-    {
-      logger.LogError(
-        ex,
-        "Failed to read Directory.Build.props. PropsPath: {PropsPath}, FileExists: {FileExists}, ErrorType: {ErrorType}",
-        propsPath,
-        fileExists,
-        ex.GetType().Name);
-
-      throw new AnalysisException(
-        $"Failed to read Directory.Build.props at '{propsPath}'. " +
-        "Ensure the file is valid XML and accessible.",
-        ex);
-    }
   }
 
   /// <summary>
