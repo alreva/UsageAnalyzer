@@ -76,77 +76,6 @@ public class AnalysisService(ILogger<AnalysisService> logger)
     return Nullable.GetUnderlyingType(type) != null;
   }
 
-  private static async Task<Compilation?> SetupProjectCompilation(Project project, string assemblyPath)
-  {
-    var coreAssemblyPath = Path.GetDirectoryName(typeof(object).Assembly.Location)!;
-    return (await project.GetCompilationAsync())?
-        .AddReferences(
-            MetadataReference.CreateFromFile(typeof(object).Assembly.Location),
-            MetadataReference.CreateFromFile(Path.Combine(coreAssemblyPath, "System.Runtime.dll")),
-            MetadataReference.CreateFromFile(Path.Combine(coreAssemblyPath, "System.Collections.dll")),
-            MetadataReference.CreateFromFile(Path.Combine(coreAssemblyPath, "System.Console.dll")),
-            MetadataReference.CreateFromFile(typeof(List<>).Assembly.Location),
-            MetadataReference.CreateFromFile(typeof(Enumerable).Assembly.Location),
-            MetadataReference.CreateFromFile(typeof(Console).Assembly.Location),
-            MetadataReference.CreateFromFile(assemblyPath));
-  }
-
-  private static bool IsGenericList(Type type)
-  {
-    return type.GetInterfaces().Any(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IList<>));
-  }
-
-  private static bool IsGenericEnumerable(Type type)
-  {
-    return type.GetInterfaces().Any(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IEnumerable<>));
-  }
-
-  private static List<string> GetProjectPathsFromSolution(string solutionPath)
-  {
-    var projectPaths = new List<string>();
-    var solutionDir = Path.GetDirectoryName(solutionPath)!;
-
-    var projectLines = File.ReadAllLines(solutionPath)
-      .Where(line => line.Trim().StartsWith("Project(", StringComparison.OrdinalIgnoreCase) && line.Contains(".csproj", StringComparison.OrdinalIgnoreCase));
-    foreach (var line in projectLines)
-    {
-      var parts = line.Split(',');
-      if (parts.Length > 1)
-      {
-        var relativePath = parts[1].Trim().Trim('"');
-        var fullPath = Path.Combine(solutionDir, relativePath);
-        projectPaths.Add(fullPath);
-      }
-    }
-
-    return projectPaths;
-  }
-
-  private static ClassAndField GetClassAndFieldName(SemanticModel model, MemberAccessExpressionSyntax usage)
-  {
-    var fieldName = usage.Name.ToString();
-    var expression = usage.Expression; // This is 'address' in 'address.ZipCode'
-    var typeInfo = model.GetTypeInfo(expression);
-    var type = typeInfo.Type;
-    return new ClassAndField(type is null ? string.Empty : type.Name, fieldName);
-  }
-
-  private static void ValidateStringParameter(string? value, string parameterName)
-  {
-    if (string.IsNullOrEmpty(value))
-    {
-      throw InvalidAnalysisInputException.NullOrEmpty(parameterName);
-    }
-  }
-
-  private static void ValidateObjectParameter(object? value, string parameterName)
-  {
-    if (value is null)
-    {
-      throw InvalidAnalysisInputException.Null(parameterName);
-    }
-  }
-
   /// <summary>
   /// Determines the target framework for a solution by reading Directory.Build.props.
   /// </summary>
@@ -457,6 +386,77 @@ public class AnalysisService(ILogger<AnalysisService> logger)
       shouldSkipTestProjects);
 
     return results;
+  }
+
+  private static async Task<Compilation?> SetupProjectCompilation(Project project, string assemblyPath)
+  {
+    var coreAssemblyPath = Path.GetDirectoryName(typeof(object).Assembly.Location)!;
+    return (await project.GetCompilationAsync())?
+        .AddReferences(
+            MetadataReference.CreateFromFile(typeof(object).Assembly.Location),
+            MetadataReference.CreateFromFile(Path.Combine(coreAssemblyPath, "System.Runtime.dll")),
+            MetadataReference.CreateFromFile(Path.Combine(coreAssemblyPath, "System.Collections.dll")),
+            MetadataReference.CreateFromFile(Path.Combine(coreAssemblyPath, "System.Console.dll")),
+            MetadataReference.CreateFromFile(typeof(List<>).Assembly.Location),
+            MetadataReference.CreateFromFile(typeof(Enumerable).Assembly.Location),
+            MetadataReference.CreateFromFile(typeof(Console).Assembly.Location),
+            MetadataReference.CreateFromFile(assemblyPath));
+  }
+
+  private static bool IsGenericList(Type type)
+  {
+    return type.GetInterfaces().Any(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IList<>));
+  }
+
+  private static bool IsGenericEnumerable(Type type)
+  {
+    return type.GetInterfaces().Any(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IEnumerable<>));
+  }
+
+  private static List<string> GetProjectPathsFromSolution(string solutionPath)
+  {
+    var projectPaths = new List<string>();
+    var solutionDir = Path.GetDirectoryName(solutionPath)!;
+
+    var projectLines = File.ReadAllLines(solutionPath)
+      .Where(line => line.Trim().StartsWith("Project(", StringComparison.OrdinalIgnoreCase) && line.Contains(".csproj", StringComparison.OrdinalIgnoreCase));
+    foreach (var line in projectLines)
+    {
+      var parts = line.Split(',');
+      if (parts.Length > 1)
+      {
+        var relativePath = parts[1].Trim().Trim('"');
+        var fullPath = Path.Combine(solutionDir, relativePath);
+        projectPaths.Add(fullPath);
+      }
+    }
+
+    return projectPaths;
+  }
+
+  private static ClassAndField GetClassAndFieldName(SemanticModel model, MemberAccessExpressionSyntax usage)
+  {
+    var fieldName = usage.Name.ToString();
+    var expression = usage.Expression; // This is 'address' in 'address.ZipCode'
+    var typeInfo = model.GetTypeInfo(expression);
+    var type = typeInfo.Type;
+    return new ClassAndField(type is null ? string.Empty : type.Name, fieldName);
+  }
+
+  private static void ValidateStringParameter(string? value, string parameterName)
+  {
+    if (string.IsNullOrEmpty(value))
+    {
+      throw InvalidAnalysisInputException.NullOrEmpty(parameterName);
+    }
+  }
+
+  private static void ValidateObjectParameter(object? value, string parameterName)
+  {
+    if (value is null)
+    {
+      throw InvalidAnalysisInputException.Null(parameterName);
+    }
   }
 
   private Solution LoadSolutionWorkspace(string solutionPath)
