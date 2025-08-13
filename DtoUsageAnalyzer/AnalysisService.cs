@@ -146,23 +146,25 @@ public class AnalysisService(ILogger<AnalysisService> logger)
   }
 
   /// <summary>
-  /// Loads types from a DTO assembly file and filters for classes in the "Dto" namespace.
+  /// Loads types from an assembly file and optionally filters for classes in a specific namespace.
   /// </summary>
-  /// <param name="dtoAssemblyPath">Absolute path to the compiled DTO assembly (.dll file).</param>
-  /// <returns>Array of Type objects representing DTO classes found in the assembly.</returns>
+  /// <param name="dtoAssemblyPath">Absolute path to the compiled assembly (.dll file).</param>
+  /// <param name="namespaceFilter">Optional namespace to filter types. If null or empty, returns all class types.</param>
+  /// <returns>Array of Type objects representing classes found in the assembly.</returns>
   /// <exception cref="InvalidAnalysisInputException">Thrown when dtoAssemblyPath is null or empty.</exception>
-  /// <exception cref="AssemblyLoadException">Thrown when the assembly file doesn't exist or contains no DTO types.</exception>
+  /// <exception cref="AssemblyLoadException">Thrown when the assembly file doesn't exist or contains no matching types.</exception>
   /// <example>
   /// <code>
-  /// var types = GetDtoAssemblyTypes("/path/to/Dto.dll");
-  /// // Returns types like UserEventDto, AddressDto, etc.
+  /// var types = GetDtoAssemblyTypes("/path/to/Dto.dll", "Dto");
+  /// // Returns types from the "Dto" namespace
+  /// var allTypes = GetDtoAssemblyTypes("/path/to/Dto.dll");
+  /// // Returns all class types from any namespace
   /// </code>
   /// </example>
   /// <remarks>
-  /// This method currently filters for types in the "Dto" namespace only.
-  /// Ensure the DTO project is built before calling this method.
+  /// Ensure the assembly project is built before calling this method.
   /// </remarks>
-  public Type[] GetDtoAssemblyTypes(string dtoAssemblyPath)
+  public Type[] GetDtoAssemblyTypes(string dtoAssemblyPath, string? namespaceFilter = DtoNamespace)
   {
     ValidateStringParameter(dtoAssemblyPath, nameof(dtoAssemblyPath));
 
@@ -182,17 +184,18 @@ public class AnalysisService(ILogger<AnalysisService> logger)
 
       var assembly = AssemblyLoadContext.Default.LoadFromAssemblyPath(dtoAssemblyPath);
       var types = assembly.GetTypes()
-          .Where(t => t is { IsClass: true, Namespace: DtoNamespace })
+          .Where(t => t.IsClass && (string.IsNullOrEmpty(namespaceFilter) || t.Namespace == namespaceFilter))
           .ToArray();
 
       if (types.Length == 0)
       {
+        var filterDescription = string.IsNullOrEmpty(namespaceFilter) ? "any namespace" : $"namespace '{namespaceFilter}'";
         logger.LogError(
-          "No DTO types found in assembly. AssemblyPath: {AssemblyPath}, Namespace: {Namespace}, TotalTypes: {TotalTypes}",
+          "No class types found in assembly. AssemblyPath: {AssemblyPath}, NamespaceFilter: {NamespaceFilter}, TotalTypes: {TotalTypes}",
           dtoAssemblyPath,
-          DtoNamespace,
+          filterDescription,
           assembly.GetTypes().Length);
-        throw AssemblyLoadException.NoTypesFound(dtoAssemblyPath, DtoNamespace);
+        throw AssemblyLoadException.NoTypesFound(dtoAssemblyPath, filterDescription);
       }
 
       logger.LogDebug(
