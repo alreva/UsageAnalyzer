@@ -29,6 +29,125 @@ public class AnalysisService(ILogger<AnalysisService> logger)
   private const string BinDirectoryPath = "/bin/";
 
   /// <summary>
+  /// Determines if a type is a primitive type, string, or an array/collection of primitives.
+  /// </summary>
+  /// <param name="type">The type to check.</param>
+  /// <returns>
+  /// True if the type is a primitive (int, bool, etc.), string, decimal, DateTime,
+  /// or an array/IEnumerable of primitives; otherwise false.
+  /// </returns>
+  /// <example>
+  /// Returns true for: int, string, DateTime, int[], List&lt;string&gt;
+  /// Returns false for: custom classes, complex objects.
+  /// </example>
+  public static bool IsPrimitiveOrArrayOfPrimitives(Type type)
+  {
+    if (type.IsPrimitive || type == typeof(string) || type == typeof(decimal) || type == typeof(DateTime))
+    {
+      return true;
+    }
+
+    if (type.IsArray)
+    {
+      var elementType = type.GetElementType();
+      return elementType != null && (elementType.IsPrimitive || elementType == typeof(string));
+    }
+
+    if (IsGenericEnumerable(type))
+    {
+      var elementType = type.GetGenericArguments()[0];
+      return elementType.IsPrimitive || elementType == typeof(string);
+    }
+
+    return false;
+  }
+
+  /// <summary>
+  /// Checks if a type is a nullable value type (e.g., int?, DateTime?).
+  /// </summary>
+  /// <param name="type">The type to check.</param>
+  /// <returns>True if the type is Nullable&lt;T&gt; otherwise false.</returns>
+  /// <example>
+  /// Returns true for: int?, DateTime?, bool?
+  /// Returns false for: int, string, object (reference types).
+  /// </example>
+  public static bool IsNullable(Type type)
+  {
+    return Nullable.GetUnderlyingType(type) != null;
+  }
+
+  private static async Task<Compilation?> SetupProjectCompilation(Project project, string assemblyPath)
+  {
+    var coreAssemblyPath = Path.GetDirectoryName(typeof(object).Assembly.Location)!;
+    return (await project.GetCompilationAsync())?
+        .AddReferences(
+            MetadataReference.CreateFromFile(typeof(object).Assembly.Location),
+            MetadataReference.CreateFromFile(Path.Combine(coreAssemblyPath, "System.Runtime.dll")),
+            MetadataReference.CreateFromFile(Path.Combine(coreAssemblyPath, "System.Collections.dll")),
+            MetadataReference.CreateFromFile(Path.Combine(coreAssemblyPath, "System.Console.dll")),
+            MetadataReference.CreateFromFile(typeof(List<>).Assembly.Location),
+            MetadataReference.CreateFromFile(typeof(Enumerable).Assembly.Location),
+            MetadataReference.CreateFromFile(typeof(Console).Assembly.Location),
+            MetadataReference.CreateFromFile(assemblyPath));
+  }
+
+  private static bool IsGenericList(Type type)
+  {
+    return type.GetInterfaces().Any(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IList<>));
+  }
+
+  private static bool IsGenericEnumerable(Type type)
+  {
+    return type.GetInterfaces().Any(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IEnumerable<>));
+  }
+
+  private static List<string> GetProjectPathsFromSolution(string solutionPath)
+  {
+    var projectPaths = new List<string>();
+    var solutionDir = Path.GetDirectoryName(solutionPath)!;
+
+    var projectLines = File.ReadAllLines(solutionPath)
+      .Where(line => line.Trim().StartsWith("Project(", StringComparison.OrdinalIgnoreCase) && line.Contains(".csproj", StringComparison.OrdinalIgnoreCase));
+    foreach (var line in projectLines)
+    {
+      var parts = line.Split(',');
+      if (parts.Length > 1)
+      {
+        var relativePath = parts[1].Trim().Trim('"');
+        var fullPath = Path.Combine(solutionDir, relativePath);
+        projectPaths.Add(fullPath);
+      }
+    }
+
+    return projectPaths;
+  }
+
+  private static ClassAndField GetClassAndFieldName(SemanticModel model, MemberAccessExpressionSyntax usage)
+  {
+    var fieldName = usage.Name.ToString();
+    var expression = usage.Expression; // This is 'address' in 'address.ZipCode'
+    var typeInfo = model.GetTypeInfo(expression);
+    var type = typeInfo.Type;
+    return new ClassAndField(type is null ? string.Empty : type.Name, fieldName);
+  }
+
+  private static void ValidateStringParameter(string? value, string parameterName)
+  {
+    if (string.IsNullOrEmpty(value))
+    {
+      throw InvalidAnalysisInputException.NullOrEmpty(parameterName);
+    }
+  }
+
+  private static void ValidateObjectParameter(object? value, string parameterName)
+  {
+    if (value is null)
+    {
+      throw InvalidAnalysisInputException.Null(parameterName);
+    }
+  }
+
+  /// <summary>
   /// Determines the target framework for a solution by reading Directory.Build.props.
   /// </summary>
   /// <param name="solutionDir">The directory containing the solution file.</param>
@@ -90,7 +209,7 @@ public class AnalysisService(ILogger<AnalysisService> logger)
   /// - Type: The declaring type of the property
   /// - FullPath: The full dotted path to the property (e.g., "Address.City", "SocialMedia.Twitter").
   /// </returns>
-  /// <exception cref="InvalidAnalysisInputException">Thrown when type is null.</exception>
+  /// <exception cref="InvalidAnalysisInputException">Thrown when the type is null.</exception>
   /// <example>
   /// For a User type with nested Address, this returns paths like:
   /// - "Name" (primitive property)
@@ -150,54 +269,6 @@ public class AnalysisService(ILogger<AnalysisService> logger)
       prefix);
 
     return properties;
-  }
-
-  /// <summary>
-  /// Determines if a type is a primitive type, string, or an array/collection of primitives.
-  /// </summary>
-  /// <param name="type">The type to check.</param>
-  /// <returns>
-  /// True if the type is a primitive (int, bool, etc.), string, decimal, DateTime,
-  /// or an array/IEnumerable of primitives; otherwise false.
-  /// </returns>
-  /// <example>
-  /// Returns true for: int, string, DateTime, int[], List&lt;string&gt;
-  /// Returns false for: custom classes, complex objects.
-  /// </example>
-  public static bool IsPrimitiveOrArrayOfPrimitives(Type type)
-  {
-    if (type.IsPrimitive || type == typeof(string) || type == typeof(decimal) || type == typeof(DateTime))
-    {
-      return true;
-    }
-
-    if (type.IsArray)
-    {
-      var elementType = type.GetElementType();
-      return elementType != null && (elementType.IsPrimitive || elementType == typeof(string));
-    }
-
-    if (IsGenericEnumerable(type))
-    {
-      var elementType = type.GetGenericArguments()[0];
-      return elementType.IsPrimitive || elementType == typeof(string);
-    }
-
-    return false;
-  }
-
-  /// <summary>
-  /// Checks if a type is a nullable value type (e.g., int?, DateTime?).
-  /// </summary>
-  /// <param name="type">The type to check.</param>
-  /// <returns>True if the type is Nullable&lt;T&gt; otherwise false.</returns>
-  /// <example>
-  /// Returns true for: int?, DateTime?, bool?
-  /// Returns false for: int, string, object (reference types).
-  /// </example>
-  public static bool IsNullable(Type type)
-  {
-    return Nullable.GetUnderlyingType(type) != null;
   }
 
   /// <summary>
@@ -294,10 +365,7 @@ public class AnalysisService(ILogger<AnalysisService> logger)
   /// <example>
   /// <code>
   /// var service = new AnalysisService(logger);
-  /// var results = await service.AnalyzeUsageAsync(
-  ///     "/path/to/solution.sln",
-  ///     typeof(UserEventDto),
-  ///     skipTests: true);
+  /// var results = await service.AnalyzeUsageAsync("/path/to/solution.sln", typeof(UserEventDto), skipTests: true);
   ///
   /// foreach (var usage in results)
   /// {
@@ -389,21 +457,6 @@ public class AnalysisService(ILogger<AnalysisService> logger)
       shouldSkipTestProjects);
 
     return results;
-  }
-
-  private static async Task<Compilation?> SetupProjectCompilation(Project project, string assemblyPath)
-  {
-    var coreAssemblyPath = Path.GetDirectoryName(typeof(object).Assembly.Location)!;
-    return (await project.GetCompilationAsync())?
-        .AddReferences(
-            MetadataReference.CreateFromFile(typeof(object).Assembly.Location),
-            MetadataReference.CreateFromFile(Path.Combine(coreAssemblyPath, "System.Runtime.dll")),
-            MetadataReference.CreateFromFile(Path.Combine(coreAssemblyPath, "System.Collections.dll")),
-            MetadataReference.CreateFromFile(Path.Combine(coreAssemblyPath, "System.Console.dll")),
-            MetadataReference.CreateFromFile(typeof(List<>).Assembly.Location),
-            MetadataReference.CreateFromFile(typeof(Enumerable).Assembly.Location),
-            MetadataReference.CreateFromFile(typeof(Console).Assembly.Location),
-            MetadataReference.CreateFromFile(assemblyPath));
   }
 
   private Solution LoadSolutionWorkspace(string solutionPath)
@@ -553,16 +606,6 @@ public class AnalysisService(ILogger<AnalysisService> logger)
     }
   }
 
-  private static bool IsGenericList(Type type)
-  {
-    return type.GetInterfaces().Any(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IList<>));
-  }
-
-  private static bool IsGenericEnumerable(Type type)
-  {
-    return type.GetInterfaces().Any(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IEnumerable<>));
-  }
-
   private void LoadProjectIntoWorkspace(AdhocWorkspace workspace, string projectPath)
   {
     if (!File.Exists(projectPath))
@@ -617,64 +660,6 @@ public class AnalysisService(ILogger<AnalysisService> logger)
 
       // Wrap with contextual information for better error handling upstream
       throw new InvalidOperationException($"Failed to load project '{projectName}' from path '{projectPath}' into workspace. See inner exception for details.", ex);
-    }
-  }
-
-  private static List<string> GetProjectPathsFromSolution(string solutionPath)
-  {
-    var projectPaths = new List<string>();
-    var solutionDir = Path.GetDirectoryName(solutionPath)!;
-
-    var projectLines = File.ReadAllLines(solutionPath)
-      .Where(line => line.Trim().StartsWith("Project(", StringComparison.OrdinalIgnoreCase) && line.Contains(".csproj", StringComparison.OrdinalIgnoreCase));
-    foreach (var line in projectLines)
-    {
-      var parts = line.Split(',');
-      if (parts.Length > 1)
-      {
-        var relativePath = parts[1].Trim().Trim('"');
-        var fullPath = Path.Combine(solutionDir, relativePath);
-        projectPaths.Add(fullPath);
-      }
-    }
-
-    return projectPaths;
-  }
-
-  private static ClassAndField GetClassAndFieldName(SemanticModel model, MemberAccessExpressionSyntax usage)
-  {
-    var fieldName = usage.Name.ToString();
-    var expression = usage.Expression; // This is 'address' in 'address.ZipCode'
-    var typeInfo = model.GetTypeInfo(expression);
-    var type = typeInfo.Type;
-    return new ClassAndField(type is null ? string.Empty : type.Name, fieldName);
-  }
-
-  /// <summary>
-  /// Validates that a string parameter is not null or empty.
-  /// </summary>
-  /// <param name="value">The parameter value to validate.</param>
-  /// <param name="parameterName">The name of the parameter being validated.</param>
-  /// <exception cref="InvalidAnalysisInputException">Thrown when the parameter is null or empty.</exception>
-  private static void ValidateStringParameter(string? value, string parameterName)
-  {
-    if (string.IsNullOrEmpty(value))
-    {
-      throw InvalidAnalysisInputException.NullOrEmpty(parameterName);
-    }
-  }
-
-  /// <summary>
-  /// Validates that an object parameter is not null.
-  /// </summary>
-  /// <param name="value">The parameter value to validate.</param>
-  /// <param name="parameterName">The name of the parameter being validated.</param>
-  /// <exception cref="InvalidAnalysisInputException">Thrown when the parameter is null.</exception>
-  private static void ValidateObjectParameter(object? value, string parameterName)
-  {
-    if (value is null)
-    {
-      throw InvalidAnalysisInputException.Null(parameterName);
     }
   }
 }
