@@ -45,7 +45,8 @@ public class AnalysisService(ILogger<AnalysisService> logger)
     {
       logger.LogDebug(
         "Directory.Build.props not found at {PropsPath}, using default framework {DefaultFramework}",
-        propsPath, DefaultTargetFramework);
+        propsPath,
+        DefaultTargetFramework);
       return DefaultTargetFramework;
     }
 
@@ -57,18 +58,24 @@ public class AnalysisService(ILogger<AnalysisService> logger)
 
       logger.LogDebug(
         "Read target framework {TargetFramework} from {PropsPath}",
-        framework, propsPath);
+        framework,
+        propsPath);
 
       return framework;
     }
     catch (Exception ex) when (ex is XmlException || ex is IOException)
     {
-      logger.LogError(ex, "Failed to read Directory.Build.props. PropsPath: {PropsPath}, FileExists: {FileExists}, ErrorType: {ErrorType}",
-        propsPath, fileExists, ex.GetType().Name);
+      logger.LogError(
+        ex,
+        "Failed to read Directory.Build.props. PropsPath: {PropsPath}, FileExists: {FileExists}, ErrorType: {ErrorType}",
+        propsPath,
+        fileExists,
+        ex.GetType().Name);
 
       throw new AnalysisException(
         $"Failed to read Directory.Build.props at '{propsPath}'. " +
-        "Ensure the file is valid XML and accessible.", ex);
+        "Ensure the file is valid XML and accessible.",
+        ex);
     }
   }
 
@@ -97,7 +104,8 @@ public class AnalysisService(ILogger<AnalysisService> logger)
     var properties = new List<(PropertyInfo Property, Type Type, string FullPath)>();
     logger.LogDebug(
       "Starting deep property discovery for type {TypeName} with prefix '{Prefix}'",
-      type.Name, prefix);
+      type.Name,
+      prefix);
 
     foreach (var prop in type.GetProperties())
     {
@@ -137,7 +145,9 @@ public class AnalysisService(ILogger<AnalysisService> logger)
 
     logger.LogDebug(
       "Completed deep property discovery for type {TypeName}. Found {PropertyCount} properties with prefix '{Prefix}'",
-      type.Name, properties.Count, prefix);
+      type.Name,
+      properties.Count,
+      prefix);
 
     return properties;
   }
@@ -180,7 +190,7 @@ public class AnalysisService(ILogger<AnalysisService> logger)
   /// Checks if a type is a nullable value type (e.g., int?, DateTime?).
   /// </summary>
   /// <param name="type">The type to check.</param>
-  /// <returns>True if the type is Nullable&lt;T&gt;; otherwise false.</returns>
+  /// <returns>True if the type is Nullable&lt;T&gt; otherwise false.</returns>
   /// <example>
   /// Returns true for: int?, DateTime?, bool?
   /// Returns false for: int, string, object (reference types).
@@ -216,7 +226,8 @@ public class AnalysisService(ILogger<AnalysisService> logger)
     {
       logger.LogError(
         "Assembly file not found. AssemblyPath: {AssemblyPath}, ErrorType: {ErrorType}",
-        dtoAssemblyPath, "FileNotFound");
+        dtoAssemblyPath,
+        "FileNotFound");
       throw AssemblyLoadException.FileNotFound(dtoAssemblyPath);
     }
 
@@ -233,24 +244,33 @@ public class AnalysisService(ILogger<AnalysisService> logger)
       {
         logger.LogError(
           "No DTO types found in assembly. AssemblyPath: {AssemblyPath}, Namespace: {Namespace}, TotalTypes: {TotalTypes}",
-          dtoAssemblyPath, DtoNamespace, assembly.GetTypes().Length);
+          dtoAssemblyPath,
+          DtoNamespace,
+          assembly.GetTypes().Length);
         throw AssemblyLoadException.NoTypesFound(dtoAssemblyPath, DtoNamespace);
       }
 
       logger.LogDebug(
         "Successfully loaded {TypeCount} DTO types from {AssemblyPath}: {TypeNames}",
-        types.Length, dtoAssemblyPath, string.Join(", ", types.Select(t => t.Name)));
+        types.Length,
+        dtoAssemblyPath,
+        string.Join(", ", types.Select(t => t.Name)));
 
       return types;
     }
     catch (Exception ex) when (ex is BadImageFormatException || ex is FileLoadException)
     {
-      logger.LogError(ex, "Failed to load assembly. AssemblyPath: {AssemblyPath}, ErrorType: {ErrorType}, FileExists: {FileExists}",
-        dtoAssemblyPath, ex.GetType().Name, fileExists);
+      logger.LogError(
+        ex,
+        "Failed to load assembly. AssemblyPath: {AssemblyPath}, ErrorType: {ErrorType}, FileExists: {FileExists}",
+        dtoAssemblyPath,
+        ex.GetType().Name,
+        fileExists);
 
       throw new AssemblyLoadException(
         dtoAssemblyPath,
-        "Assembly file is corrupted or not a valid .NET assembly.", ex);
+        "Assembly file is corrupted or not a valid .NET assembly.",
+        ex);
     }
   }
 
@@ -298,7 +318,8 @@ public class AnalysisService(ILogger<AnalysisService> logger)
     {
       logger.LogError(
         "Solution file not found. SolutionPath: {SolutionPath}, ErrorType: {ErrorType}",
-        solutionPath, "FileNotFound");
+        solutionPath,
+        "FileNotFound");
       throw SolutionLoadException.FileNotFound(solutionPath);
     }
 
@@ -360,7 +381,12 @@ public class AnalysisService(ILogger<AnalysisService> logger)
     logger.LogInformation(
       "Analysis completed for class {ClassName} in solution {SolutionPath}. " +
       "PropertiesAnalyzed: {PropertyCount}, TotalUsages: {TotalUsages}, UnusedProperties: {UnusedProperties}, SkipTests: {SkipTests}",
-      selectedClass.Name, solutionPath, results.Count, totalUsages, unusedProperties, shouldSkipTestProjects);
+      selectedClass.Name,
+      solutionPath,
+      results.Count,
+      totalUsages,
+      unusedProperties,
+      shouldSkipTestProjects);
 
     return results;
   }
@@ -421,11 +447,15 @@ public class AnalysisService(ILogger<AnalysisService> logger)
     }
     catch (Exception ex) when (!(ex is SolutionLoadException))
     {
-      logger.LogError(ex, "Unexpected error loading solution workspace. SolutionPath: {SolutionPath}, ErrorType: {ErrorType}",
-        solutionPath, "UnexpectedError");
+      logger.LogError(
+        ex,
+        "Unexpected error loading solution workspace. SolutionPath: {SolutionPath}, ErrorType: {ErrorType}",
+        solutionPath,
+        "UnexpectedError");
       throw new SolutionLoadException(
         solutionPath,
-        "Unexpected error during solution loading. Check that all projects build successfully.", ex);
+        "Unexpected error during solution loading. Check that all projects build successfully.",
+        ex);
     }
   }
 
@@ -539,7 +569,8 @@ public class AnalysisService(ILogger<AnalysisService> logger)
     {
       logger.LogWarning(
         "Project file not found during workspace loading. ProjectPath: {ProjectPath}, FileExists: {FileExists}",
-        projectPath, false);
+        projectPath,
+        false);
       return;
     }
 
@@ -577,8 +608,12 @@ public class AnalysisService(ILogger<AnalysisService> logger)
     }
     catch (Exception ex)
     {
-      logger.LogError(ex, "Failed to load project into workspace. ProjectName: {ProjectName}, ProjectPath: {ProjectPath}, ErrorType: {ErrorType}",
-        projectName, projectPath, "ProjectLoadError");
+      logger.LogError(
+        ex,
+        "Failed to load project into workspace. ProjectName: {ProjectName}, ProjectPath: {ProjectPath}, ErrorType: {ErrorType}",
+        projectName,
+        projectPath,
+        "ProjectLoadError");
 
       // Wrap with contextual information for better error handling upstream
       throw new InvalidOperationException($"Failed to load project '{projectName}' from path '{projectPath}' into workspace. See inner exception for details.", ex);
