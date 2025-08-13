@@ -13,8 +13,8 @@ public class SolutionLoadException : AnalysisException
   /// <param name="innerException">The underlying exception that caused the failure.</param>
   public SolutionLoadException(string solutionPath, string message, Exception? innerException = null)
       : base(
-        $"Failed to load solution '{solutionPath}': {message}. " +
-             "Ensure the solution file exists, is valid, and all projects build successfully.", innerException)
+        $"Failed to load solution '{solutionPath}': {message}. Ensure the solution file exists, is valid, and all projects build successfully.",
+        innerException)
   {
     this.SolutionPath = solutionPath;
   }

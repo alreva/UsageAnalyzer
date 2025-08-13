@@ -13,8 +13,8 @@ public class AssemblyLoadException : AnalysisException
   /// <param name="innerException">The underlying exception that caused the failure.</param>
   public AssemblyLoadException(string assemblyPath, string message, Exception? innerException = null)
       : base(
-        $"Failed to load assembly '{assemblyPath}': {message}. " +
-             "Ensure the assembly file exists and was built successfully.", innerException)
+        $"Failed to load assembly '{assemblyPath}': {message}. Ensure the assembly file exists and was built successfully.",
+        innerException)
   {
     this.AssemblyPath = assemblyPath;
   }
@@ -46,7 +46,6 @@ public class AssemblyLoadException : AnalysisException
   {
     return new AssemblyLoadException(
       assemblyPath,
-      $"No DTO classes found in namespace '{namespaceName}'. " +
-        "Verify the namespace contains public classes.");
+      $"No DTO classes found in namespace '{namespaceName}'. Verify the namespace contains public classes.");
   }
 }
