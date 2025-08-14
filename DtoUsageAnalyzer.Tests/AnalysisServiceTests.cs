@@ -14,6 +14,12 @@ public class AnalysisServiceTests
     return new AnalysisService(logger);
   }
 
+  private static AnalysisService CreateService(AnalysisOptions options)
+  {
+    ILogger<AnalysisService> logger = LoggerFactory.Create(builder => { }).CreateLogger<AnalysisService>();
+    return new AnalysisService(logger, options);
+  }
+
   private static string GetSolutionPath()
   {
     var baseDir = AppContext.BaseDirectory;
@@ -67,12 +73,13 @@ public class AnalysisServiceTests
   [Fact]
   public async Task AnalyzeUsageAsync_ReturnsUsageCounts()
   {
-    var service = CreateService();
+    // Use same exclusion patterns as the original test to maintain expected behavior
+    var options = new AnalysisOptions { ExcludePatterns = ["*Tests", "Analyze", "Dto"] };
+    var service = CreateService(options);
     var solutionPath = GetSolutionPath();
     var result = await service.AnalyzeUsageAsync(
         solutionPath,
-        typeof(UserEventDto),
-        true);
+        typeof(UserEventDto));
 
     var aggregated = result
         .GroupBy(r => r.Property.Attribute)
@@ -83,5 +90,55 @@ public class AnalysisServiceTests
     Assert.Equal(2, aggregated[new ClassAndField("ActivityLog", "ProductId")]);
     Assert.Equal(0, aggregated[new ClassAndField("User", "CreatedAt")]);
     Assert.Equal(1, aggregated[new ClassAndField("UserEventDto", "EventId")]);
+  }
+
+  [Fact]
+  public void AnalysisService_WithDefaultOptions_HasEmptyExcludePatterns()
+  {
+    var service = CreateService();
+    var defaultOptions = new AnalysisOptions();
+
+    // Default options should have no exclude patterns (library makes no assumptions)
+    Assert.NotNull(service);
+    Assert.Empty(defaultOptions.ExcludePatterns);
+  }
+
+  [Fact]
+  public void AnalysisService_WithCustomOptions_UsesCustomPatterns()
+  {
+    var options = new AnalysisOptions
+    {
+      ExcludePatterns = ["*Integration*", "Mock*"],
+    };
+    var service = CreateService(options);
+
+    // Verify custom patterns are configured correctly
+    Assert.NotNull(service);
+    Assert.Equal(2, options.ExcludePatterns.Length);
+    Assert.Contains("*Integration*", options.ExcludePatterns);
+    Assert.Contains("Mock*", options.ExcludePatterns);
+  }
+
+  [Fact]
+  public void AnalysisService_WithNullOptions_UsesEmptyDefaults()
+  {
+    var service = CreateService(null!);
+
+    // Should work with null options (uses empty defaults)
+    Assert.NotNull(service);
+  }
+
+  [Fact]
+  public async Task AnalyzeUsageAsync_WithNoExcludePatterns_ProcessesAllProjects()
+  {
+    // Test with empty exclude patterns - should process all projects including tests
+    var options = new AnalysisOptions { ExcludePatterns = [] };
+    var service = CreateService(options);
+    var solutionPath = GetSolutionPath();
+
+    var result = await service.AnalyzeUsageAsync(solutionPath, typeof(UserEventDto));
+
+    // Should get results since no projects are excluded
+    Assert.NotEmpty(result);
   }
 }

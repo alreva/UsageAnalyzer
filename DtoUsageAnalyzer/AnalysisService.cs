@@ -13,16 +13,25 @@ using Microsoft.Extensions.Logging;
 /// <summary>
 /// Provides Roslyn-based static code analysis for DTO property usage across .NET solutions.
 /// </summary>
-/// <param name="logger">Logger instance for diagnostic information during analysis.</param>
-public class AnalysisService(ILogger<AnalysisService> logger)
+public class AnalysisService
 {
   private const string DtoNamespace = "Dto";
-  private const string TestProjectSuffix = "Tests";
-  private const string AnalyzeProjectName = "Analyze";
-  private const string DtoProjectName = "Dto";
   private const string UnusedPropertyFilePath = "N/A";
   private const string ObjDirectoryPath = "/obj/";
   private const string BinDirectoryPath = "/bin/";
+  private readonly ILogger<AnalysisService> logger;
+  private readonly AnalysisOptions options;
+
+  /// <summary>
+  /// Initializes a new instance of the <see cref="AnalysisService"/> class.
+  /// </summary>
+  /// <param name="logger">Logger instance for diagnostic information during analysis.</param>
+  /// <param name="options">Optional configuration for analysis behavior. If null, default options with no exclusions will be used.</param>
+  public AnalysisService(ILogger<AnalysisService> logger, AnalysisOptions? options = null)
+  {
+    this.logger = logger;
+    this.options = options ?? new();
+  }
 
   /// <summary>
   /// Determines if a type is a primitive type, string, or an array/collection of primitives.
@@ -95,7 +104,7 @@ public class AnalysisService(ILogger<AnalysisService> logger)
     ValidateObjectParameter(type, nameof(type));
 
     var properties = new List<(PropertyInfo Property, Type Type, string FullPath)>();
-    logger.LogDebug(
+    this.logger.LogDebug(
       "Starting deep property discovery for type {TypeName} with prefix '{Prefix}'",
       type.Name,
       prefix);
@@ -136,7 +145,7 @@ public class AnalysisService(ILogger<AnalysisService> logger)
       properties.AddRange(this.GetDeepProperties(propType, fullPath));
     }
 
-    logger.LogDebug(
+    this.logger.LogDebug(
       "Completed deep property discovery for type {TypeName}. Found {PropertyCount} properties with prefix '{Prefix}'",
       type.Name,
       properties.Count,
@@ -171,7 +180,7 @@ public class AnalysisService(ILogger<AnalysisService> logger)
     var fileExists = File.Exists(dtoAssemblyPath);
     if (!fileExists)
     {
-      logger.LogError(
+      this.logger.LogError(
         "Assembly file not found. AssemblyPath: {AssemblyPath}, ErrorType: {ErrorType}",
         dtoAssemblyPath,
         "FileNotFound");
@@ -180,7 +189,7 @@ public class AnalysisService(ILogger<AnalysisService> logger)
 
     try
     {
-      logger.LogDebug("Loading DTO assembly from {AssemblyPath}", dtoAssemblyPath);
+      this.logger.LogDebug("Loading DTO assembly from {AssemblyPath}", dtoAssemblyPath);
 
       var assembly = AssemblyLoadContext.Default.LoadFromAssemblyPath(dtoAssemblyPath);
       var types = assembly.GetTypes()
@@ -190,7 +199,7 @@ public class AnalysisService(ILogger<AnalysisService> logger)
       if (types.Length == 0)
       {
         var filterDescription = string.IsNullOrEmpty(namespaceFilter) ? "any namespace" : $"namespace '{namespaceFilter}'";
-        logger.LogError(
+        this.logger.LogError(
           "No class types found in assembly. AssemblyPath: {AssemblyPath}, NamespaceFilter: {NamespaceFilter}, TotalTypes: {TotalTypes}",
           dtoAssemblyPath,
           filterDescription,
@@ -198,7 +207,7 @@ public class AnalysisService(ILogger<AnalysisService> logger)
         throw AssemblyLoadException.NoTypesFound(dtoAssemblyPath, filterDescription);
       }
 
-      logger.LogDebug(
+      this.logger.LogDebug(
         "Successfully loaded {TypeCount} DTO types from {AssemblyPath}: {TypeNames}",
         types.Length,
         dtoAssemblyPath,
@@ -208,7 +217,7 @@ public class AnalysisService(ILogger<AnalysisService> logger)
     }
     catch (Exception ex) when (ex is BadImageFormatException || ex is FileLoadException)
     {
-      logger.LogError(
+      this.logger.LogError(
         ex,
         "Failed to load assembly. AssemblyPath: {AssemblyPath}, ErrorType: {ErrorType}, FileExists: {FileExists}",
         dtoAssemblyPath,
@@ -224,13 +233,10 @@ public class AnalysisService(ILogger<AnalysisService> logger)
 
   /// <summary>
   /// Analyzes property usage for a specific DTO class across all projects in a solution.
+  /// Projects are filtered based on the ExcludePatterns configured in AnalysisOptions.
   /// </summary>
   /// <param name="solutionPath">Absolute path to the .sln file to analyze.</param>
   /// <param name="selectedClass">The DTO class type to analyze for property usage patterns.</param>
-  /// <param name="shouldSkipTestProjects">
-  /// If true, excludes projects ending with "Tests" from analysis.
-  /// Also excludes "Analyze" and "Dto" projects by default.
-  /// </param>
   /// <returns>
   /// A collection of property usage data where each item contains:
   /// - Property: UsageKey with file path and property information
@@ -241,8 +247,9 @@ public class AnalysisService(ILogger<AnalysisService> logger)
   /// <exception cref="SolutionLoadException">Thrown when the solution file cannot be loaded or analyzed.</exception>
   /// <example>
   /// <code>
-  /// var service = new AnalysisService(logger);
-  /// var results = await service.AnalyzeUsageAsync("/path/to/solution.sln", typeof(UserEventDto), skipTests: true);
+  /// var options = new AnalysisOptions { ExcludePatterns = ["*Tests", "MockProjects"] };
+  /// var service = new AnalysisService(logger, options);
+  /// var results = await service.AnalyzeUsageAsync("/path/to/solution.sln", typeof(UserEventDto));
   ///
   /// foreach (var usage in results)
   /// {
@@ -252,8 +259,7 @@ public class AnalysisService(ILogger<AnalysisService> logger)
   /// </example>
   public async Task<IReadOnlyList<PropertyUsage>> AnalyzeUsageAsync(
       string solutionPath,
-      Type selectedClass,
-      bool shouldSkipTestProjects)
+      Type selectedClass)
   {
     ValidateStringParameter(solutionPath, nameof(solutionPath));
     ValidateObjectParameter(selectedClass, nameof(selectedClass));
@@ -261,19 +267,19 @@ public class AnalysisService(ILogger<AnalysisService> logger)
     var fileExists = File.Exists(solutionPath);
     if (!fileExists)
     {
-      logger.LogError(
+      this.logger.LogError(
         "Solution file not found. SolutionPath: {SolutionPath}, ErrorType: {ErrorType}",
         solutionPath,
         "FileNotFound");
       throw SolutionLoadException.FileNotFound(solutionPath);
     }
 
-    logger.LogDebug("Starting analysis for class: {SelectedClassFullName}", selectedClass.FullName);
+    this.logger.LogDebug("Starting analysis for class: {SelectedClassFullName}", selectedClass.FullName);
     var propertyUsage = new Dictionary<UsageKey, int>();
 
     // Find property references
     var deepProperties = this.GetDeepProperties(selectedClass);
-    logger.LogDebug(
+    this.logger.LogDebug(
         "Found {Count} deep properties in {CurrentTypeFullName}",
         deepProperties.Count,
         selectedClass.FullName);
@@ -282,17 +288,10 @@ public class AnalysisService(ILogger<AnalysisService> logger)
 
     foreach (var project in solution.Projects)
     {
-      // Skip Test project
-      if (shouldSkipTestProjects && project.Name.EndsWith(TestProjectSuffix, StringComparison.OrdinalIgnoreCase))
+      // Skip projects matching exclude patterns
+      if (ShouldSkipProject(project.Name, this.options.ExcludePatterns))
       {
-        logger.LogInformation("Skipping test project {ProjectName}.", project.Name);
-        continue;
-      }
-
-      // Skip Analyze project
-      if (project.Name is AnalyzeProjectName or DtoProjectName)
-      {
-        logger.LogInformation("Skipping {ProjectName} project.", project.Name);
+        this.logger.LogInformation("Skipping project {ProjectName} (matches exclude pattern).", project.Name);
         continue;
       }
 
@@ -323,15 +322,15 @@ public class AnalysisService(ILogger<AnalysisService> logger)
     var totalUsages = results.Sum(r => r.UsageCount);
     var unusedProperties = results.Count(r => r.UsageCount == 0);
 
-    logger.LogInformation(
+    this.logger.LogInformation(
       "Analysis completed for class {ClassName} in solution {SolutionPath}. " +
-      "PropertiesAnalyzed: {PropertyCount}, TotalUsages: {TotalUsages}, UnusedProperties: {UnusedProperties}, SkipTests: {SkipTests}",
+      "PropertiesAnalyzed: {PropertyCount}, TotalUsages: {TotalUsages}, UnusedProperties: {UnusedProperties}, ExcludePatterns: {ExcludePatterns}",
       selectedClass.Name,
       solutionPath,
       results.Count,
       totalUsages,
       unusedProperties,
-      shouldSkipTestProjects);
+      string.Join(", ", this.options.ExcludePatterns));
 
     return results;
   }
@@ -349,6 +348,45 @@ public class AnalysisService(ILogger<AnalysisService> logger)
             MetadataReference.CreateFromFile(typeof(Enumerable).Assembly.Location),
             MetadataReference.CreateFromFile(typeof(Console).Assembly.Location),
             MetadataReference.CreateFromFile(assemblyPath));
+  }
+
+  private static bool ShouldSkipProject(string projectName, string[] excludePatterns)
+  {
+    return excludePatterns.Any(pattern => ProjectMatchesPattern(projectName, pattern));
+  }
+
+  private static bool ProjectMatchesPattern(string projectName, string pattern)
+  {
+    return pattern switch
+    {
+      _ when pattern.StartsWith('*') && pattern.EndsWith('*') => MatchesContainsPattern(projectName, pattern),
+      _ when pattern.StartsWith('*') => MatchesSuffixPattern(projectName, pattern),
+      _ when pattern.EndsWith('*') => MatchesPrefixPattern(projectName, pattern),
+      _ => MatchesExactPattern(projectName, pattern),
+    };
+  }
+
+  private static bool MatchesContainsPattern(string projectName, string pattern)
+  {
+    var substring = pattern[1..^1];
+    return projectName.Contains(substring, StringComparison.OrdinalIgnoreCase);
+  }
+
+  private static bool MatchesSuffixPattern(string projectName, string pattern)
+  {
+    var suffix = pattern[1..];
+    return projectName.EndsWith(suffix, StringComparison.OrdinalIgnoreCase);
+  }
+
+  private static bool MatchesPrefixPattern(string projectName, string pattern)
+  {
+    var prefix = pattern[..^1];
+    return projectName.StartsWith(prefix, StringComparison.OrdinalIgnoreCase);
+  }
+
+  private static bool MatchesExactPattern(string projectName, string pattern)
+  {
+    return projectName.Equals(pattern, StringComparison.OrdinalIgnoreCase);
   }
 
   private static bool IsGenericList(Type type)
@@ -409,38 +447,38 @@ public class AnalysisService(ILogger<AnalysisService> logger)
 
   private Solution LoadSolutionWorkspace(string solutionPath)
   {
-    logger.LogDebug("Loading solution workspace from {SolutionPath}", solutionPath);
+    this.logger.LogDebug("Loading solution workspace from {SolutionPath}", solutionPath);
 
     try
     {
       using var workspace = new AdhocWorkspace(MefHostServices.Create(MefHostServices.DefaultAssemblies));
       workspace.WorkspaceFailed += (_, args) =>
       {
-        logger.LogWarning("Workspace diagnostic: {Diagnostic} for solution {SolutionPath}", args.Diagnostic, solutionPath);
+        this.logger.LogWarning("Workspace diagnostic: {Diagnostic} for solution {SolutionPath}", args.Diagnostic, solutionPath);
       };
 
       var projectPaths = GetProjectPathsFromSolution(solutionPath);
-      logger.LogDebug("Found {ProjectPathCount} projects in solution {SolutionPath}", projectPaths.Count, solutionPath);
+      this.logger.LogDebug("Found {ProjectPathCount} projects in solution {SolutionPath}", projectPaths.Count, solutionPath);
 
       if (projectPaths.Count == 0)
       {
-        logger.LogError("No projects found in solution {SolutionPath}", solutionPath);
+        this.logger.LogError("No projects found in solution {SolutionPath}", solutionPath);
         throw SolutionLoadException.NoProjects(solutionPath);
       }
 
       foreach (var projectPath in projectPaths)
       {
-        logger.LogDebug("Loading project {ProjectPath} into workspace", projectPath);
+        this.logger.LogDebug("Loading project {ProjectPath} into workspace", projectPath);
         this.LoadProjectIntoWorkspace(workspace, projectPath.Replace("\\", "/"));
       }
 
       var solution = workspace.CurrentSolution;
       var loadedProjectCount = solution.Projects.Count();
-      logger.LogInformation("Successfully loaded solution {SolutionPath} with {ProjectCount} projects", solutionPath, loadedProjectCount);
+      this.logger.LogInformation("Successfully loaded solution {SolutionPath} with {ProjectCount} projects", solutionPath, loadedProjectCount);
 
       if (!solution.Projects.Any())
       {
-        logger.LogError("No projects loaded into workspace for solution {SolutionPath}", solutionPath);
+        this.logger.LogError("No projects loaded into workspace for solution {SolutionPath}", solutionPath);
         throw SolutionLoadException.NoProjects(solutionPath);
       }
 
@@ -448,7 +486,7 @@ public class AnalysisService(ILogger<AnalysisService> logger)
     }
     catch (Exception ex) when (!(ex is SolutionLoadException))
     {
-      logger.LogError(
+      this.logger.LogError(
         ex,
         "Unexpected error loading solution workspace. SolutionPath: {SolutionPath}, ErrorType: {ErrorType}",
         solutionPath,
@@ -485,7 +523,7 @@ public class AnalysisService(ILogger<AnalysisService> logger)
       var semanticModel = compilation.GetSemanticModel(syntaxTree);
       var root = await syntaxTree.GetRootAsync();
 
-      logger.LogDebug("Analyzing file: {FilePath}", filePath);
+      this.logger.LogDebug("Analyzing file: {FilePath}", filePath);
 
       var memberAccessExpressionSyntaxes = root
           .DescendantNodes()
@@ -530,7 +568,7 @@ public class AnalysisService(ILogger<AnalysisService> logger)
 
       if (deepProperty == default)
       {
-        logger.LogDebug(
+        this.logger.LogDebug(
             "Property usage for {PropertyName}" +
             " in file {FilePath} is of type {ActualClassName}" +
             " and does not match expected class {ExpectedClassName}.",
@@ -558,7 +596,7 @@ public class AnalysisService(ILogger<AnalysisService> logger)
   {
     if (!File.Exists(projectPath))
     {
-      logger.LogWarning(
+      this.logger.LogWarning(
         "Project file not found during workspace loading. ProjectPath: {ProjectPath}, FileExists: {FileExists}",
         projectPath,
         false);
@@ -566,7 +604,7 @@ public class AnalysisService(ILogger<AnalysisService> logger)
     }
 
     var projectName = Path.GetFileNameWithoutExtension(projectPath);
-    logger.LogDebug("Loading project into workspace. ProjectName: {ProjectName}, ProjectPath: {ProjectPath}", projectName, projectPath);
+    this.logger.LogDebug("Loading project into workspace. ProjectName: {ProjectName}, ProjectPath: {ProjectPath}", projectName, projectPath);
 
     try
     {
@@ -581,7 +619,7 @@ public class AnalysisService(ILogger<AnalysisService> logger)
 
       var projectDirectory = Path.GetDirectoryName(projectPath)!;
       var documents = Directory.GetFiles(projectDirectory, "*.cs", SearchOption.AllDirectories);
-      logger.LogDebug("Found {DocumentCount} C# files in project {ProjectName}", documents.Length, projectName);
+      this.logger.LogDebug("Found {DocumentCount} C# files in project {ProjectName}", documents.Length, projectName);
 
       foreach (var docPath in documents)
       {
@@ -595,11 +633,11 @@ public class AnalysisService(ILogger<AnalysisService> logger)
         workspace.AddDocument(documentInfo);
       }
 
-      logger.LogDebug("Successfully loaded project {ProjectName} with {DocumentCount} documents", projectName, documents.Length);
+      this.logger.LogDebug("Successfully loaded project {ProjectName} with {DocumentCount} documents", projectName, documents.Length);
     }
     catch (Exception ex)
     {
-      logger.LogError(
+      this.logger.LogError(
         ex,
         "Failed to load project into workspace. ProjectName: {ProjectName}, ProjectPath: {ProjectPath}, ErrorType: {ErrorType}",
         projectName,

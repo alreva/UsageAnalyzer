@@ -21,13 +21,28 @@ public class Program
     var serviceProvider = services.BuildServiceProvider();
 
     var logger = serviceProvider.GetRequiredService<ILogger<Program>>();
-    var analysisService = serviceProvider.GetRequiredService<AnalysisService>();
     var consoleUi = new ConsoleUi(logger);
 
     try
     {
       consoleUi.DisplayWelcome();
       var solutionPath = consoleUi.FindSolutionFile();
+
+      // Get user preferences for analysis options
+      var skipTestProjects = consoleUi.PromptToSkipTestProjects();
+      var excludePatterns = new List<string> { "Analyze", "Dto" }; // Always exclude utility projects
+      if (skipTestProjects)
+      {
+        excludePatterns.Add("*Tests"); // Add test project pattern if user chooses to skip
+      }
+
+      var analysisOptions = new AnalysisOptions
+      {
+        ExcludePatterns = excludePatterns.ToArray(),
+      };
+
+      // Create analysis service with user preferences
+      var analysisService = new AnalysisService(serviceProvider.GetRequiredService<ILogger<AnalysisService>>(), analysisOptions);
 
       // Get all DTO classes
       var solutionDir = Path.GetDirectoryName(solutionPath)!;
@@ -50,13 +65,11 @@ public class Program
       // Ask user for property usage output format
       var propertyUsageFormat = consoleUi.PromptForPropertyUsageFormat();
 
-      var skipTestProjects = consoleUi.PromptToSkipTestProjects();
-
       consoleUi.DisplayAnalysisStart(selectedClass);
 
       // Analyze usage
       var propertyUsage = await analysisService
-          .AnalyzeUsageAsync(solutionPath, selectedClass, skipTestProjects);
+          .AnalyzeUsageAsync(solutionPath, selectedClass);
 
       // Display results
       consoleUi.DisplayResults(propertyUsage, propertyUsageFormat);
@@ -75,6 +88,7 @@ public class Program
       builder.AddConfiguration(configuration.GetSection("Logging"));
     });
 
-    services.AddSingleton<AnalysisService>();
+    // We'll create the AnalysisService with options later based on user input
+    services.AddTransient<AnalysisService>();
   }
 }
