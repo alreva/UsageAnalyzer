@@ -510,3 +510,6 @@ orleans.codegen.cs
 
 # Claude Code guidance file - keep local only
 CLAUDE.md
+
+# Claude Code configuration - keep local only
+.claude/
