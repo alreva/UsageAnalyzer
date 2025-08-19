@@ -100,7 +100,7 @@ public class AnalysisServiceTests(ITestOutputHelper testOutputHelper)
     [Fact]
     public async Task AnalyzeUsageAsync_ReturnsUsageCounts()
     {
-        // Use same exclusion patterns as the original test to maintain expected behavior
+        // Use the same exclusion patterns as the original test to maintain expected behavior
         var options = new AnalysisOptions { ExcludePatterns = ["*Tests", "Analyze", "Dto"] };
         var service = CreateService(options);
         var solutionPath = GetSolutionPath();
@@ -384,7 +384,7 @@ class Program
                 RedirectStandardError = true,
             });
 
-        var processCompleted = runProcess?.WaitForExit(2000); // 2 second timeout
+        var processCompleted = runProcess?.WaitForExit(2000); // 2-second timeout
         if (processCompleted == false)
         {
             // Process is likely stuck in infinite recursion - kill it
