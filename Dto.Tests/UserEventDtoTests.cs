@@ -76,6 +76,7 @@ public class UserEventDtoTests
                     {
                         Action = "viewProduct",
                         ProductId = "prod123",
+                        ViewCount = 5,
                         Timestamp = DateTime.Parse("2023-09-30T10:05:00Z"),
                     },
                 },
@@ -83,8 +84,12 @@ public class UserEventDtoTests
     };
 
     // Act
-    var jsonString = JsonSerializer.Serialize(userEventDto);
-    var deserializedUserEventDto = JsonSerializer.Deserialize<UserEventDto>(jsonString);
+    var options = new JsonSerializerOptions
+    {
+      IncludeFields = true,
+    };
+    var jsonString = JsonSerializer.Serialize(userEventDto, options);
+    var deserializedUserEventDto = JsonSerializer.Deserialize<UserEventDto>(jsonString, options);
 
     // Assert
     Assert.NotNull(deserializedUserEventDto);

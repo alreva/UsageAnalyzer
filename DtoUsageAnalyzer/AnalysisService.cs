@@ -82,33 +82,32 @@ public class AnalysisService
   }
 
   /// <summary>
-  /// Recursively discovers all properties in a type hierarchy, including nested objects and collections.
+  /// Recursively discovers all members (properties and fields) in a type hierarchy, including nested objects and collections.
   /// </summary>
-  /// <param name="type">The root type to analyze for properties.</param>
-  /// <param name="prefix">Optional prefix for nested property paths (used internally for recursion).</param>
+  /// <param name="type">The root type to analyze for members.</param>
+  /// <param name="prefix">Optional prefix for nested member paths (used internally for recursion).</param>
   /// <returns>
-  /// A list of tuples containing:
-  /// - Property: The PropertyInfo of the discovered property
-  /// - Type: The declaring type of the property
-  /// - FullPath: The full dotted path to the property (e.g., "Address.City", "SocialMedia.Twitter").
+  /// A list of AnalyzedMember objects containing member information and metadata.
   /// </returns>
   /// <exception cref="InvalidAnalysisInputException">Thrown when the type is null.</exception>
   /// <example>
   /// For a User type with nested Address, this returns paths like:
   /// - "Name" (primitive property)
   /// - "Address.City" (nested object property)
+  /// - "deviceId" (field in nested object)
   /// - "SocialMedia.Twitter" (nested object property).
   /// </example>
-  public List<(PropertyInfo Property, Type Type, string FullPath)> GetDeepProperties(Type type, string prefix = "")
+  public List<AnalyzedMember> GetDeepMembers(Type type, string prefix = "")
   {
     ValidateObjectParameter(type, nameof(type));
 
-    var properties = new List<(PropertyInfo Property, Type Type, string FullPath)>();
+    var members = new List<AnalyzedMember>();
     this.logger.LogDebug(
-      "Starting deep property discovery for type {TypeName} with prefix '{Prefix}'",
+      "Starting deep member discovery for type {TypeName} with prefix '{Prefix}'",
       type.Name,
       prefix);
 
+    // Get all properties
     foreach (var prop in type.GetProperties())
     {
       var propType = prop.PropertyType;
@@ -116,7 +115,7 @@ public class AnalysisService
 
       if (IsPrimitiveOrArrayOfPrimitives(propType))
       {
-        properties.Add((prop, type, fullPath));
+        members.Add(new AnalyzedMember(prop, type, fullPath, propType, prop.Name));
         continue;
       }
 
@@ -125,11 +124,11 @@ public class AnalysisService
         var itemProp = propType.GetProperty("Value")!;
         if (IsPrimitiveOrArrayOfPrimitives(itemProp.PropertyType))
         {
-          properties.Add((prop, type, fullPath));
+          members.Add(new AnalyzedMember(prop, type, fullPath, propType, prop.Name));
         }
         else
         {
-          properties.AddRange(this.GetDeepProperties(itemProp.PropertyType, fullPath + ".Value"));
+          members.AddRange(this.GetDeepMembers(itemProp.PropertyType, fullPath + ".Value"));
         }
 
         continue;
@@ -138,20 +137,74 @@ public class AnalysisService
       if (IsGenericList(propType))
       {
         var itemProp = propType.GetProperty("Item")!;
-        properties.AddRange(this.GetDeepProperties(itemProp.PropertyType, fullPath + ".Item"));
+        members.AddRange(this.GetDeepMembers(itemProp.PropertyType, fullPath + ".Item"));
         continue;
       }
 
-      properties.AddRange(this.GetDeepProperties(propType, fullPath));
+      members.AddRange(this.GetDeepMembers(propType, fullPath));
+    }
+
+    // Get all public fields
+    foreach (var field in type.GetFields(BindingFlags.Public | BindingFlags.Instance))
+    {
+      var fieldType = field.FieldType;
+      var fullPath = string.IsNullOrEmpty(prefix) ? field.Name : $"{prefix}.{field.Name}";
+
+      if (IsPrimitiveOrArrayOfPrimitives(fieldType))
+      {
+        members.Add(new AnalyzedMember(field, type, fullPath, fieldType, field.Name));
+        continue;
+      }
+
+      if (IsNullable(fieldType))
+      {
+        var underlyingType = Nullable.GetUnderlyingType(fieldType)!;
+        if (IsPrimitiveOrArrayOfPrimitives(underlyingType))
+        {
+          members.Add(new AnalyzedMember(field, type, fullPath, fieldType, field.Name));
+        }
+        else
+        {
+          members.AddRange(this.GetDeepMembers(underlyingType, fullPath + ".Value"));
+        }
+
+        continue;
+      }
+
+      if (IsGenericList(fieldType))
+      {
+        var itemType = fieldType.GetGenericArguments()[0];
+        members.AddRange(this.GetDeepMembers(itemType, fullPath + ".Item"));
+        continue;
+      }
+
+      members.AddRange(this.GetDeepMembers(fieldType, fullPath));
     }
 
     this.logger.LogDebug(
-      "Completed deep property discovery for type {TypeName}. Found {PropertyCount} properties with prefix '{Prefix}'",
+      "Completed deep member discovery for type {TypeName}. Found {MemberCount} members with prefix '{Prefix}'",
       type.Name,
-      properties.Count,
+      members.Count,
       prefix);
 
-    return properties;
+    return members;
+  }
+
+  /// <summary>
+  /// Legacy method that returns properties only for backward compatibility.
+  /// New code should use GetDeepMembers instead.
+  /// </summary>
+  /// <param name="type">The root type to analyze for properties.</param>
+  /// <param name="prefix">Optional prefix for nested property paths.</param>
+  /// <returns>A list of tuples containing PropertyInfo, Type, and FullPath.</returns>
+  [Obsolete("Use GetDeepMembers instead to support both properties and fields")]
+  public List<(PropertyInfo Property, Type Type, string FullPath)> GetDeepProperties(Type type, string prefix = "")
+  {
+    var members = this.GetDeepMembers(type, prefix);
+    return members
+        .Where(m => m.Member is PropertyInfo)
+        .Select(m => ((PropertyInfo)m.Member, m.DeclaringType, m.FullPath))
+        .ToList();
   }
 
   /// <summary>
@@ -277,11 +330,11 @@ public class AnalysisService
     this.logger.LogDebug("Starting analysis for class: {SelectedClassFullName}", selectedClass.FullName);
     var propertyUsage = new Dictionary<UsageKey, int>();
 
-    // Find property references
-    var deepProperties = this.GetDeepProperties(selectedClass);
+    // Find member references (properties and fields)
+    var deepMembers = this.GetDeepMembers(selectedClass);
     this.logger.LogDebug(
-        "Found {Count} deep properties in {CurrentTypeFullName}",
-        deepProperties.Count,
+        "Found {Count} deep members in {CurrentTypeFullName}",
+        deepMembers.Count,
         selectedClass.FullName);
 
     var solution = this.LoadSolutionWorkspace(solutionPath);
@@ -301,13 +354,13 @@ public class AnalysisService
         continue;
       }
 
-      await this.AnalyzeProjectDocuments(project, compilation, deepProperties, propertyUsage, selectedClass);
+      await this.AnalyzeProjectDocuments(project, compilation, deepMembers, propertyUsage, selectedClass);
     }
 
-    // add unused properties from deepProperties:
-    foreach (var deepProperty in deepProperties)
+    // add unused members from deepMembers:
+    foreach (var deepMember in deepMembers)
     {
-      var attribute = new ClassAndField(deepProperty.Type.Name, deepProperty.Property.Name);
+      var attribute = new ClassAndField(deepMember.DeclaringType.Name, deepMember.Name);
 
       if (propertyUsage.Any(k => k.Key.Attribute == attribute))
       {
@@ -324,7 +377,7 @@ public class AnalysisService
 
     this.logger.LogInformation(
       "Analysis completed for class {ClassName} in solution {SolutionPath}. " +
-      "PropertiesAnalyzed: {PropertyCount}, TotalUsages: {TotalUsages}, UnusedProperties: {UnusedProperties}, ExcludePatterns: {ExcludePatterns}",
+      "MembersAnalyzed: {MemberCount}, TotalUsages: {TotalUsages}, UnusedMembers: {UnusedMembers}, ExcludePatterns: {ExcludePatterns}",
       selectedClass.Name,
       solutionPath,
       results.Count,
@@ -501,7 +554,7 @@ public class AnalysisService
   private async Task AnalyzeProjectDocuments(
       Project project,
       Compilation compilation,
-      List<(PropertyInfo Property, Type Type, string FullPath)> deepProperties,
+      List<AnalyzedMember> deepMembers,
       Dictionary<UsageKey, int> propertyUsage,
       Type selectedClass)
   {
@@ -529,14 +582,14 @@ public class AnalysisService
           .DescendantNodes()
           .OfType<MemberAccessExpressionSyntax>();
 
-      var deepPropertyNames = deepProperties
-          .Select(p => p.Property.Name)
+      var deepMemberNames = deepMembers
+          .Select(m => m.Name)
           .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
-      this.AnalyzePropertyUsage(
+      this.AnalyzeMemberUsage(
           memberAccessExpressionSyntaxes,
-          deepPropertyNames,
-          deepProperties,
+          deepMemberNames,
+          deepMembers,
           semanticModel,
           filePath,
           selectedClass,
@@ -544,10 +597,10 @@ public class AnalysisService
     }
   }
 
-  private void AnalyzePropertyUsage(
+  private void AnalyzeMemberUsage(
       IEnumerable<MemberAccessExpressionSyntax> memberAccessExpressions,
-      HashSet<string> deepPropertyNames,
-      List<(PropertyInfo Property, Type Type, string FullPath)> deepProperties,
+      HashSet<string> deepMemberNames,
+      List<AnalyzedMember> deepMembers,
       SemanticModel semanticModel,
       string filePath,
       Type selectedClass,
@@ -555,21 +608,21 @@ public class AnalysisService
   {
     foreach (var usageCandidate in memberAccessExpressions)
     {
-      if (!deepPropertyNames.Contains(usageCandidate.Name.Identifier.Text))
+      if (!deepMemberNames.Contains(usageCandidate.Name.Identifier.Text))
       {
         continue;
       }
 
       var attribute = GetClassAndFieldName(semanticModel, usageCandidate);
-      var deepProperty = deepProperties
-          .SingleOrDefault(p =>
-              attribute.ClassName == p.Type.Name
-              && attribute.FieldName == p.Property.Name);
+      var deepMember = deepMembers
+          .SingleOrDefault(m =>
+              attribute.ClassName == m.DeclaringType.Name
+              && attribute.FieldName == m.Name);
 
-      if (deepProperty == default)
+      if (deepMember is null)
       {
         this.logger.LogDebug(
-            "Property usage for {PropertyName}" +
+            "Member usage for {MemberName}" +
             " in file {FilePath} is of type {ActualClassName}" +
             " and does not match expected class {ExpectedClassName}.",
             attribute.FieldName,

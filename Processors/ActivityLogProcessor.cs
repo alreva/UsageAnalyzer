@@ -20,6 +20,8 @@ public class ActivityLogProcessor : BaseProcessor<UserEventDto>
           output.WriteLine($"Product ID: {activity.ProductId}");
         }
 
+        output.WriteLine($"View Count: {activity.ViewCount}");
+
         output.WriteLine();
       }
     }

@@ -9,5 +9,7 @@ public class ActivityLog
 
   public required DateTime Timestamp { get; set; }
 
-  public string? ProductId { get; set; }
+  public string? ProductId;
+
+  public int ViewCount;
 }

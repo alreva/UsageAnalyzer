@@ -69,6 +69,7 @@ public class ActivityLogProcessorTests
                         {
                             "action": "viewProduct",
                             "productId": "prod123",
+                            "viewCount": 5,
                             "timestamp": "2023-09-30T10:05:00Z"
                         }
                     ]
@@ -86,6 +87,7 @@ public class ActivityLogProcessorTests
     Assert.Contains("User Activity Log:", result);
     Assert.Contains("Action: viewProduct", result);
     Assert.Contains("Product ID: prod123", result);
+    Assert.Contains("View Count: 5", result);
     Assert.Contains("Action: login", result);
   }
 

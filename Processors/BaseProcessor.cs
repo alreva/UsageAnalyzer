@@ -7,6 +7,7 @@ public abstract class BaseProcessor<TDto> : IProcessor
   private static JsonSerializerOptions JsonOptions => new()
   {
     PropertyNameCaseInsensitive = true,
+    IncludeFields = true,
   };
 
   /// <inheritdoc/>
