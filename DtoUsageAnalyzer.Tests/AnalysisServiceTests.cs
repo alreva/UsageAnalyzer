@@ -1,5 +1,6 @@
 namespace DtoUsageAnalyzer.Tests;
 
+using System.Diagnostics;
 using System.IO;
 using System.Reflection;
 using Analyze;
@@ -232,12 +233,12 @@ public class AnalysisServiceTests
     var allMembers = result.Select(r => r.Property.Attribute).ToHashSet();
 
     // Verify both fields and properties are included in results
-    Assert.Contains(new ClassAndField("Address", "Street"), allMembers);       // Init-only property
-    Assert.Contains(new ClassAndField("Address", "City"), allMembers);         // Property
-    Assert.Contains(new ClassAndField("Address", "Country"), allMembers);      // Init-only property
+    Assert.Contains(new ClassAndField("Address", "Street"), allMembers); // Init-only property
+    Assert.Contains(new ClassAndField("Address", "City"), allMembers); // Property
+    Assert.Contains(new ClassAndField("Address", "Country"), allMembers); // Init-only property
     Assert.Contains(new ClassAndField("DeviceInfo", "DeviceType"), allMembers); // Init-only property
-    Assert.Contains(new ClassAndField("DeviceInfo", "Browser"), allMembers);   // Init-only property
-    Assert.Contains(new ClassAndField("DeviceInfo", "Os"), allMembers);        // Property
+    Assert.Contains(new ClassAndField("DeviceInfo", "Browser"), allMembers); // Init-only property
+    Assert.Contains(new ClassAndField("DeviceInfo", "Os"), allMembers); // Property
     Assert.Contains(new ClassAndField("DeviceInfo", "IpAddress"), allMembers); // Property
     Assert.Contains(new ClassAndField("ActivityLog", "ProductId"), allMembers); // Field
     Assert.Contains(new ClassAndField("ActivityLog", "ViewCount"), allMembers); // Field
@@ -251,12 +252,19 @@ public class AnalysisServiceTests
   }
 
   [Fact]
-  public void GetDeepMembers_WithCircularReference_CausesProcessCrash()
+  public void GetDeepMembers_WithCircularReference_CausesStackOverflow()
   {
     // This test runs GetDeepMembers with circular reference in a separate process
-    // to verify it causes a StackOverflowException without crashing the test host
-    var testCode = @"
+    // to verify it actually causes a StackOverflowException
+    var tempDir = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+    Directory.CreateDirectory(tempDir);
+
+    try
+    {
+      // Create a test program that calls GetDeepMembers with circular references
+      var testProgram = @"
 using System;
+using System.Collections.Generic;
 using DtoUsageAnalyzer;
 using Microsoft.Extensions.Logging;
 
@@ -287,22 +295,97 @@ class Program
       var logger = LoggerFactory.Create(builder => { }).CreateLogger<AnalysisService>();
       var service = new AnalysisService(logger);
       var result = service.GetDeepMembers(typeof(Employee));
-      return 0; // Should not reach here
+      Console.WriteLine(""Unexpected success - should have crashed"");
+      return 0; // Should never reach here due to StackOverflow
     }
-    catch (Exception)
+    catch (StackOverflowException)
     {
-      return 1; // Unexpected exception
+      Console.WriteLine(""StackOverflowException occurred"");
+      return 2; // Expected but may not be caught
+    }
+    catch (Exception ex)
+    {
+      Console.WriteLine($""Unexpected exception: {ex.GetType().Name}"");
+      return 1;
     }
   }
 }";
 
-    // For now, we just verify the circular reference exists and document the issue
-    // A full separate process test would require more complex setup
-    Assert.Contains(typeof(Employee).GetProperties(), p => p.PropertyType == typeof(Department));
-    Assert.Contains(typeof(Department).GetProperties(), p => p.PropertyType == typeof(Employee));
+      var testFile = Path.Combine(tempDir, "CircularTest.cs");
+      File.WriteAllText(testFile, testProgram);
 
-    // TODO: Implement actual separate process test when infrastructure allows
-    // This would involve creating a temporary .cs file, compiling it, running it,
-    // and checking if it crashes with StackOverflowException
+      var projectFile = Path.Combine(tempDir, "CircularTest.csproj");
+
+      // Get the DtoUsageAnalyzer project path using assembly location
+      var testAssemblyLocation = Assembly.GetExecutingAssembly().Location;
+      var testDir = Path.GetDirectoryName(testAssemblyLocation)!;
+      var solutionDir = Path.GetFullPath(Path.Combine(testDir, "../../../../"));
+      var dtoUsageAnalyzerPath = Path.Combine(solutionDir, "DtoUsageAnalyzer", "DtoUsageAnalyzer.csproj");
+
+      if (!File.Exists(dtoUsageAnalyzerPath))
+      {
+        Assert.Fail($"Could not find DtoUsageAnalyzer project at: {dtoUsageAnalyzerPath}. TestDir: {testDir}, SolutionDir: {solutionDir}");
+      }
+
+      var projectContent = $@"
+<Project Sdk=""Microsoft.NET.Sdk"">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <UseAppHost>false</UseAppHost>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include=""{dtoUsageAnalyzerPath}"" />
+  </ItemGroup>
+</Project>";
+      File.WriteAllText(projectFile, projectContent);
+
+      // Build the test project
+      var buildProcess = Process.Start(new ProcessStartInfo
+      {
+        FileName = "dotnet",
+        Arguments = "build --configuration Release",
+        WorkingDirectory = tempDir,
+        UseShellExecute = false,
+        RedirectStandardOutput = true,
+        RedirectStandardError = true,
+      });
+
+      buildProcess?.WaitForExit(30000);
+
+      if (buildProcess?.ExitCode != 0)
+      {
+        var output = buildProcess?.StandardOutput.ReadToEnd();
+        var error = buildProcess?.StandardError.ReadToEnd();
+        Assert.Fail($"Build failed with exit code {buildProcess?.ExitCode}. Output: {output}. Error: {error}");
+      }
+
+      // Run the test and expect it to crash
+      var runProcess = Process.Start(new ProcessStartInfo
+      {
+        FileName = "dotnet",
+        Arguments = "run --configuration Release --no-build",
+        WorkingDirectory = tempDir,
+        UseShellExecute = false,
+        RedirectStandardOutput = true,
+        RedirectStandardError = true,
+      });
+
+      runProcess?.WaitForExit(5000); // 5 second timeout
+
+      // The process should have crashed or been terminated due to StackOverflowException
+      // In .NET, StackOverflowException typically terminates the process with exit code -1073741571 (0xC00000FD)
+      Assert.True(runProcess?.ExitCode != 0, "Process should have crashed due to StackOverflowException");
+      Assert.True(runProcess?.HasExited == true, "Process should have exited");
+    }
+    finally
+    {
+      // Clean up temp directory
+      if (Directory.Exists(tempDir))
+      {
+        Directory.Delete(tempDir, true);
+      }
+    }
   }
 }
