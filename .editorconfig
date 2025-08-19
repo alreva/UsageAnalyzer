@@ -5,6 +5,23 @@ end_of_line = lf
 insert_final_newline = true
 trim_trailing_whitespace = true
 
+[/*Dto/**]
+dotnet_diagnostic.CS1591.severity = none
+dotnet_diagnostic.SA1600.severity = none
+
+[/*Processors/**]
+dotnet_diagnostic.CS1591.severity = none
+dotnet_diagnostic.SA1600.severity = none
+
+[/*Analyze/**]
+dotnet_diagnostic.CS1591.severity = none
+dotnet_diagnostic.SA1600.severity = none
+dotnet_diagnostic.SA1602.severity = none
+
+[/*Tests/**]
+dotnet_diagnostic.CS1591.severity = none
+dotnet_diagnostic.SA1600.severity = none
+
 [*.cs]
 indent_style = space
 indent_size = 2

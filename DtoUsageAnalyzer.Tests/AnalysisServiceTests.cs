@@ -11,228 +11,228 @@ using Xunit.Abstractions;
 
 public class AnalysisServiceTests(ITestOutputHelper testOutputHelper)
 {
-    [Fact]
-    public void GetDtoAssemblyTypes_ReturnsDtoTypes()
+  [Fact]
+  public void GetDtoAssemblyTypes_ReturnsDtoTypes()
+  {
+    var service = CreateService();
+    var solutionPath = GetSolutionPath();
+    var solutionDir = Path.GetDirectoryName(solutionPath)!;
+    var tf = ProjectHelper.GetTargetFramework(solutionDir);
+    var dtoAssemblyPath = Path.Combine(solutionDir, "Dto", "bin", "Debug", tf, "Dto.dll");
+    var types = service.GetDtoAssemblyTypes(dtoAssemblyPath);
+    Assert.Contains(types, t => t.Name == nameof(UserEventDto));
+  }
+
+  [Fact]
+  public void IsNullable_DetectsNullableTypes()
+  {
+    Assert.True(AnalysisService.IsNullable(typeof(int?)));
+    Assert.False(AnalysisService.IsNullable(typeof(int)));
+  }
+
+  [Fact]
+  public void IsPrimitiveOrArrayOfPrimitives_ReturnsExpected()
+  {
+    Assert.True(AnalysisService.IsPrimitiveOrArrayOfPrimitives(typeof(int)));
+    Assert.True(AnalysisService.IsPrimitiveOrArrayOfPrimitives(typeof(string)));
+    Assert.True(AnalysisService.IsPrimitiveOrArrayOfPrimitives(typeof(decimal)));
+    Assert.True(AnalysisService.IsPrimitiveOrArrayOfPrimitives(typeof(DateTime)));
+    Assert.True(AnalysisService.IsPrimitiveOrArrayOfPrimitives(typeof(string[])));
+    Assert.True(AnalysisService.IsPrimitiveOrArrayOfPrimitives(typeof(List<int>)));
+    Assert.False(AnalysisService.IsPrimitiveOrArrayOfPrimitives(typeof(DeviceInfo)));
+  }
+
+  [Fact]
+  public void GetDeepMembers_ReturnsPropertiesAndFields()
+  {
+    var service = CreateService();
+    var result = service.GetDeepMembers(typeof(User));
+    var membersByPath = result.ToDictionary(m => m.FullPath, m => m);
+
+    // Properties should be included (Address.City, DeviceInfo.IpAddress)
+    Assert.True(membersByPath.ContainsKey("Address.City"));
+    Assert.True(membersByPath.ContainsKey("DeviceInfo.IpAddress"));
+    Assert.True(membersByPath["Address.City"].Member is PropertyInfo);
+    Assert.True(membersByPath["DeviceInfo.IpAddress"].Member is PropertyInfo);
+
+    // Init-only properties should be included (treated as properties, not fields)
+    Assert.True(membersByPath.ContainsKey("Address.Street"));
+    Assert.True(membersByPath.ContainsKey("DeviceInfo.DeviceType"));
+    Assert.True(membersByPath["Address.Street"].Member is PropertyInfo);
+    Assert.True(membersByPath["DeviceInfo.DeviceType"].Member is PropertyInfo);
+
+    // Fields should be included (ActivityLog has actual fields)
+    if (membersByPath.TryGetValue("ActivityLog.ProductId", out var value))
     {
-        var service = CreateService();
-        var solutionPath = GetSolutionPath();
-        var solutionDir = Path.GetDirectoryName(solutionPath)!;
-        var tf = ProjectHelper.GetTargetFramework(solutionDir);
-        var dtoAssemblyPath = Path.Combine(solutionDir, "Dto", "bin", "Debug", tf, "Dto.dll");
-        var types = service.GetDtoAssemblyTypes(dtoAssemblyPath);
-        Assert.Contains(types, t => t.Name == nameof(UserEventDto));
+      Assert.True(value.Member is FieldInfo);
     }
 
-    [Fact]
-    public void IsNullable_DetectsNullableTypes()
+    if (membersByPath.TryGetValue("ActivityLog.ViewCount", out var value1))
     {
-        Assert.True(AnalysisService.IsNullable(typeof(int?)));
-        Assert.False(AnalysisService.IsNullable(typeof(int)));
+      Assert.True(value1.Member is FieldInfo);
     }
 
-    [Fact]
-    public void IsPrimitiveOrArrayOfPrimitives_ReturnsExpected()
+    // Both should have correct names and types
+    Assert.Equal("Street", membersByPath["Address.Street"].Name);
+    Assert.Equal(typeof(string), membersByPath["Address.Street"].MemberType);
+  }
+
+  [Fact]
+  public void GetDeepMembers_HandlesFieldsInRootType()
+  {
+    var service = CreateService();
+    var result = service.GetDeepMembers(typeof(ActivityLog));
+    var membersByName = result.ToDictionary(m => m.Name, m => m);
+
+    // Fields
+    Assert.True(membersByName.ContainsKey("ProductId"));
+    Assert.True(membersByName.ContainsKey("ViewCount"));
+    Assert.True(membersByName["ProductId"].Member is FieldInfo);
+    Assert.True(membersByName["ViewCount"].Member is FieldInfo);
+
+    // Properties
+    Assert.True(membersByName.ContainsKey("Action"));
+    Assert.True(membersByName.ContainsKey("Timestamp"));
+    Assert.True(membersByName["Action"].Member is PropertyInfo);
+    Assert.True(membersByName["Timestamp"].Member is PropertyInfo);
+  }
+
+  [Fact]
+  public async Task AnalyzeUsageAsync_ReturnsUsageCounts()
+  {
+    // Use the same exclusion patterns as the original test to maintain expected behavior
+    var options = new AnalysisOptions { ExcludePatterns = ["*Tests", "Analyze", "Dto"] };
+    var service = CreateService(options);
+    var solutionPath = GetSolutionPath();
+    var result = await service.AnalyzeUsageAsync(
+        solutionPath,
+        typeof(UserEventDto));
+
+    var aggregated = result
+        .GroupBy(r => r.Property.Attribute)
+        .ToDictionary(g => g.Key, g => g.Sum(x => x.UsageCount));
+
+    Assert.Equal(2, aggregated[new ClassAndField("Address", "ZipCode")]);
+    Assert.Equal(2, aggregated[new ClassAndField("User", "FavoriteCategories")]);
+    Assert.Equal(2, aggregated[new ClassAndField("ActivityLog", "ProductId")]);
+    Assert.Equal(0, aggregated[new ClassAndField("User", "CreatedAt")]);
+    Assert.Equal(1, aggregated[new ClassAndField("UserEventDto", "EventId")]);
+
+    // Verify init-only property usage is tracked - Street is an init-only property in Address
+    Assert.True(aggregated.ContainsKey(new ClassAndField("Address", "Street")));
+    Assert.Equal(1, aggregated[new ClassAndField("Address", "Street")]);
+
+    // Verify field usage is tracked - ViewCount is a field in ActivityLog
+    Assert.True(aggregated.ContainsKey(new ClassAndField("ActivityLog", "ViewCount")));
+    Assert.Equal(1, aggregated[new ClassAndField("ActivityLog", "ViewCount")]);
+  }
+
+  [Fact]
+  public void AnalysisService_WithDefaultOptions_HasEmptyExcludePatterns()
+  {
+    var service = CreateService();
+    var defaultOptions = new AnalysisOptions();
+
+    // Default options should have no exclude patterns (library makes no assumptions)
+    Assert.NotNull(service);
+    Assert.Empty(defaultOptions.ExcludePatterns);
+  }
+
+  [Fact]
+  public void AnalysisService_WithCustomOptions_UsesCustomPatterns()
+  {
+    var options = new AnalysisOptions
     {
-        Assert.True(AnalysisService.IsPrimitiveOrArrayOfPrimitives(typeof(int)));
-        Assert.True(AnalysisService.IsPrimitiveOrArrayOfPrimitives(typeof(string)));
-        Assert.True(AnalysisService.IsPrimitiveOrArrayOfPrimitives(typeof(decimal)));
-        Assert.True(AnalysisService.IsPrimitiveOrArrayOfPrimitives(typeof(DateTime)));
-        Assert.True(AnalysisService.IsPrimitiveOrArrayOfPrimitives(typeof(string[])));
-        Assert.True(AnalysisService.IsPrimitiveOrArrayOfPrimitives(typeof(List<int>)));
-        Assert.False(AnalysisService.IsPrimitiveOrArrayOfPrimitives(typeof(DeviceInfo)));
+      ExcludePatterns = ["*Integration*", "Mock*"],
+    };
+    var service = CreateService(options);
+
+    // Verify custom patterns are configured correctly
+    Assert.NotNull(service);
+    Assert.Equal(2, options.ExcludePatterns.Length);
+    Assert.Contains("*Integration*", options.ExcludePatterns);
+    Assert.Contains("Mock*", options.ExcludePatterns);
+  }
+
+  [Fact]
+  public void AnalysisService_WithNullOptions_UsesEmptyDefaults()
+  {
+    var service = CreateService(null!);
+
+    // Should work with null options (uses empty defaults)
+    Assert.NotNull(service);
+  }
+
+  [Fact]
+  public async Task AnalyzeUsageAsync_WithNoExcludePatterns_ProcessesAllProjects()
+  {
+    // Test with empty exclude patterns - should process all projects including tests
+    var options = new AnalysisOptions { ExcludePatterns = [] };
+    var service = CreateService(options);
+    var solutionPath = GetSolutionPath();
+
+    var result = await service.AnalyzeUsageAsync(solutionPath, typeof(UserEventDto));
+
+    // Should get results since no projects are excluded
+    Assert.NotEmpty(result);
+  }
+
+  [Fact]
+  public async Task AnalyzeUsageAsync_IncludesFieldUsageInResults()
+  {
+    var options = new AnalysisOptions { ExcludePatterns = ["*Tests", "Analyze", "Dto"] };
+    var service = CreateService(options);
+    var solutionPath = GetSolutionPath();
+    var result = await service.AnalyzeUsageAsync(solutionPath, typeof(UserEventDto));
+
+    var allMembers = result.Select(r => r.Property.Attribute).ToHashSet();
+
+    // Verify both fields and properties are included in results
+    Assert.Contains(new ClassAndField("Address", "Street"), allMembers); // Init-only property
+    Assert.Contains(new ClassAndField("Address", "City"), allMembers); // Property
+    Assert.Contains(new ClassAndField("Address", "Country"), allMembers); // Init-only property
+    Assert.Contains(new ClassAndField("DeviceInfo", "DeviceType"), allMembers); // Init-only property
+    Assert.Contains(new ClassAndField("DeviceInfo", "Browser"), allMembers); // Init-only property
+    Assert.Contains(new ClassAndField("DeviceInfo", "Os"), allMembers); // Property
+    Assert.Contains(new ClassAndField("DeviceInfo", "IpAddress"), allMembers); // Property
+    Assert.Contains(new ClassAndField("ActivityLog", "ProductId"), allMembers); // Field
+    Assert.Contains(new ClassAndField("ActivityLog", "ViewCount"), allMembers); // Field
+
+    // Verify mixed usage (some fields used, some not)
+    var usedMembers = result.Where(r => r.UsageCount > 0).Select(r => r.Property.Attribute).ToHashSet();
+    var unusedMembers = result.Where(r => r.UsageCount == 0).Select(r => r.Property.Attribute).ToHashSet();
+
+    Assert.True(usedMembers.Count > 0, "Should have some used members");
+    Assert.True(unusedMembers.Count > 0, "Should have some unused members");
+  }
+
+  [Fact]
+  public void GetDeepMembers_WithCircularReference_CausesStackOverflow()
+  {
+    // This test runs GetDeepMembers with circular reference in a separate process
+    // to verify it actually causes a StackOverflowException
+    var tempDir = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+    Directory.CreateDirectory(tempDir);
+
+    try
+    {
+      CreateCircularReferenceTestProgram(tempDir);
+      this.RunCircularReferenceTest(tempDir);
     }
-
-    [Fact]
-    public void GetDeepMembers_ReturnsPropertiesAndFields()
+    finally
     {
-        var service = CreateService();
-        var result = service.GetDeepMembers(typeof(User));
-        var membersByPath = result.ToDictionary(m => m.FullPath, m => m);
-
-        // Properties should be included (Address.City, DeviceInfo.IpAddress)
-        Assert.True(membersByPath.ContainsKey("Address.City"));
-        Assert.True(membersByPath.ContainsKey("DeviceInfo.IpAddress"));
-        Assert.True(membersByPath["Address.City"].Member is PropertyInfo);
-        Assert.True(membersByPath["DeviceInfo.IpAddress"].Member is PropertyInfo);
-
-        // Init-only properties should be included (treated as properties, not fields)
-        Assert.True(membersByPath.ContainsKey("Address.Street"));
-        Assert.True(membersByPath.ContainsKey("DeviceInfo.DeviceType"));
-        Assert.True(membersByPath["Address.Street"].Member is PropertyInfo);
-        Assert.True(membersByPath["DeviceInfo.DeviceType"].Member is PropertyInfo);
-
-        // Fields should be included (ActivityLog has actual fields)
-        if (membersByPath.TryGetValue("ActivityLog.ProductId", out var value))
-        {
-            Assert.True(value.Member is FieldInfo);
-        }
-
-        if (membersByPath.TryGetValue("ActivityLog.ViewCount", out var value1))
-        {
-            Assert.True(value1.Member is FieldInfo);
-        }
-
-        // Both should have correct names and types
-        Assert.Equal("Street", membersByPath["Address.Street"].Name);
-        Assert.Equal(typeof(string), membersByPath["Address.Street"].MemberType);
+      // Clean up temp directory
+      if (Directory.Exists(tempDir))
+      {
+        Directory.Delete(tempDir, true);
+      }
     }
+  }
 
-    [Fact]
-    public void GetDeepMembers_HandlesFieldsInRootType()
-    {
-        var service = CreateService();
-        var result = service.GetDeepMembers(typeof(ActivityLog));
-        var membersByName = result.ToDictionary(m => m.Name, m => m);
-
-        // Fields
-        Assert.True(membersByName.ContainsKey("ProductId"));
-        Assert.True(membersByName.ContainsKey("ViewCount"));
-        Assert.True(membersByName["ProductId"].Member is FieldInfo);
-        Assert.True(membersByName["ViewCount"].Member is FieldInfo);
-
-        // Properties
-        Assert.True(membersByName.ContainsKey("Action"));
-        Assert.True(membersByName.ContainsKey("Timestamp"));
-        Assert.True(membersByName["Action"].Member is PropertyInfo);
-        Assert.True(membersByName["Timestamp"].Member is PropertyInfo);
-    }
-
-    [Fact]
-    public async Task AnalyzeUsageAsync_ReturnsUsageCounts()
-    {
-        // Use the same exclusion patterns as the original test to maintain expected behavior
-        var options = new AnalysisOptions { ExcludePatterns = ["*Tests", "Analyze", "Dto"] };
-        var service = CreateService(options);
-        var solutionPath = GetSolutionPath();
-        var result = await service.AnalyzeUsageAsync(
-            solutionPath,
-            typeof(UserEventDto));
-
-        var aggregated = result
-            .GroupBy(r => r.Property.Attribute)
-            .ToDictionary(g => g.Key, g => g.Sum(x => x.UsageCount));
-
-        Assert.Equal(2, aggregated[new ClassAndField("Address", "ZipCode")]);
-        Assert.Equal(2, aggregated[new ClassAndField("User", "FavoriteCategories")]);
-        Assert.Equal(2, aggregated[new ClassAndField("ActivityLog", "ProductId")]);
-        Assert.Equal(0, aggregated[new ClassAndField("User", "CreatedAt")]);
-        Assert.Equal(1, aggregated[new ClassAndField("UserEventDto", "EventId")]);
-
-        // Verify init-only property usage is tracked - Street is an init-only property in Address
-        Assert.True(aggregated.ContainsKey(new ClassAndField("Address", "Street")));
-        Assert.Equal(1, aggregated[new ClassAndField("Address", "Street")]);
-
-        // Verify field usage is tracked - ViewCount is a field in ActivityLog
-        Assert.True(aggregated.ContainsKey(new ClassAndField("ActivityLog", "ViewCount")));
-        Assert.Equal(1, aggregated[new ClassAndField("ActivityLog", "ViewCount")]);
-    }
-
-    [Fact]
-    public void AnalysisService_WithDefaultOptions_HasEmptyExcludePatterns()
-    {
-        var service = CreateService();
-        var defaultOptions = new AnalysisOptions();
-
-        // Default options should have no exclude patterns (library makes no assumptions)
-        Assert.NotNull(service);
-        Assert.Empty(defaultOptions.ExcludePatterns);
-    }
-
-    [Fact]
-    public void AnalysisService_WithCustomOptions_UsesCustomPatterns()
-    {
-        var options = new AnalysisOptions
-        {
-            ExcludePatterns = ["*Integration*", "Mock*"],
-        };
-        var service = CreateService(options);
-
-        // Verify custom patterns are configured correctly
-        Assert.NotNull(service);
-        Assert.Equal(2, options.ExcludePatterns.Length);
-        Assert.Contains("*Integration*", options.ExcludePatterns);
-        Assert.Contains("Mock*", options.ExcludePatterns);
-    }
-
-    [Fact]
-    public void AnalysisService_WithNullOptions_UsesEmptyDefaults()
-    {
-        var service = CreateService(null!);
-
-        // Should work with null options (uses empty defaults)
-        Assert.NotNull(service);
-    }
-
-    [Fact]
-    public async Task AnalyzeUsageAsync_WithNoExcludePatterns_ProcessesAllProjects()
-    {
-        // Test with empty exclude patterns - should process all projects including tests
-        var options = new AnalysisOptions { ExcludePatterns = [] };
-        var service = CreateService(options);
-        var solutionPath = GetSolutionPath();
-
-        var result = await service.AnalyzeUsageAsync(solutionPath, typeof(UserEventDto));
-
-        // Should get results since no projects are excluded
-        Assert.NotEmpty(result);
-    }
-
-    [Fact]
-    public async Task AnalyzeUsageAsync_IncludesFieldUsageInResults()
-    {
-        var options = new AnalysisOptions { ExcludePatterns = ["*Tests", "Analyze", "Dto"] };
-        var service = CreateService(options);
-        var solutionPath = GetSolutionPath();
-        var result = await service.AnalyzeUsageAsync(solutionPath, typeof(UserEventDto));
-
-        var allMembers = result.Select(r => r.Property.Attribute).ToHashSet();
-
-        // Verify both fields and properties are included in results
-        Assert.Contains(new ClassAndField("Address", "Street"), allMembers); // Init-only property
-        Assert.Contains(new ClassAndField("Address", "City"), allMembers); // Property
-        Assert.Contains(new ClassAndField("Address", "Country"), allMembers); // Init-only property
-        Assert.Contains(new ClassAndField("DeviceInfo", "DeviceType"), allMembers); // Init-only property
-        Assert.Contains(new ClassAndField("DeviceInfo", "Browser"), allMembers); // Init-only property
-        Assert.Contains(new ClassAndField("DeviceInfo", "Os"), allMembers); // Property
-        Assert.Contains(new ClassAndField("DeviceInfo", "IpAddress"), allMembers); // Property
-        Assert.Contains(new ClassAndField("ActivityLog", "ProductId"), allMembers); // Field
-        Assert.Contains(new ClassAndField("ActivityLog", "ViewCount"), allMembers); // Field
-
-        // Verify mixed usage (some fields used, some not)
-        var usedMembers = result.Where(r => r.UsageCount > 0).Select(r => r.Property.Attribute).ToHashSet();
-        var unusedMembers = result.Where(r => r.UsageCount == 0).Select(r => r.Property.Attribute).ToHashSet();
-
-        Assert.True(usedMembers.Count > 0, "Should have some used members");
-        Assert.True(unusedMembers.Count > 0, "Should have some unused members");
-    }
-
-    [Fact]
-    public void GetDeepMembers_WithCircularReference_CausesStackOverflow()
-    {
-        // This test runs GetDeepMembers with circular reference in a separate process
-        // to verify it actually causes a StackOverflowException
-        var tempDir = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
-        Directory.CreateDirectory(tempDir);
-
-        try
-        {
-            CreateCircularReferenceTestProgram(tempDir);
-            this.RunCircularReferenceTest(tempDir);
-        }
-        finally
-        {
-            // Clean up temp directory
-            if (Directory.Exists(tempDir))
-            {
-                Directory.Delete(tempDir, true);
-            }
-        }
-    }
-
-    private static void CreateCircularReferenceTestProgram(string tempDir)
-    {
-        // Create a test program that calls GetDeepMembers with circular references
-        var testProgram = @"
+  private static void CreateCircularReferenceTestProgram(string tempDir)
+  {
+    // Create a test program that calls GetDeepMembers with circular references
+    var testProgram = @"
 using System;
 using System.Collections.Generic;
 using System.Threading;
@@ -298,24 +298,24 @@ class Program
   }
 }";
 
-        var testFile = Path.Combine(tempDir, "CircularTest.cs");
-        File.WriteAllText(testFile, testProgram);
+    var testFile = Path.Combine(tempDir, "CircularTest.cs");
+    File.WriteAllText(testFile, testProgram);
 
-        var projectFile = Path.Combine(tempDir, "CircularTest.csproj");
+    var projectFile = Path.Combine(tempDir, "CircularTest.csproj");
 
-        // Get the DtoUsageAnalyzer project path using assembly location
-        var testAssemblyLocation = Assembly.GetExecutingAssembly().Location;
-        var testDir = Path.GetDirectoryName(testAssemblyLocation)!;
-        var solutionDir = Path.GetFullPath(Path.Combine(testDir, "../../../../"));
-        var dtoUsageAnalyzerPath = Path.Combine(solutionDir, "DtoUsageAnalyzer", "DtoUsageAnalyzer.csproj");
+    // Get the DtoUsageAnalyzer project path using assembly location
+    var testAssemblyLocation = Assembly.GetExecutingAssembly().Location;
+    var testDir = Path.GetDirectoryName(testAssemblyLocation)!;
+    var solutionDir = Path.GetFullPath(Path.Combine(testDir, "../../../../"));
+    var dtoUsageAnalyzerPath = Path.Combine(solutionDir, "DtoUsageAnalyzer", "DtoUsageAnalyzer.csproj");
 
-        if (!File.Exists(dtoUsageAnalyzerPath))
-        {
-            Assert.Fail(
-                $"Could not find DtoUsageAnalyzer project at: {dtoUsageAnalyzerPath}. TestDir: {testDir}, SolutionDir: {solutionDir}");
-        }
+    if (!File.Exists(dtoUsageAnalyzerPath))
+    {
+      Assert.Fail(
+          $"Could not find DtoUsageAnalyzer project at: {dtoUsageAnalyzerPath}. TestDir: {testDir}, SolutionDir: {solutionDir}");
+    }
 
-        var projectContent = $@"
+    var projectContent = $@"
 <Project Sdk=""Microsoft.NET.Sdk"">
   <PropertyGroup>
     <OutputType>Exe</OutputType>
@@ -327,163 +327,163 @@ class Program
     <ProjectReference Include=""{dtoUsageAnalyzerPath}"" />
   </ItemGroup>
 </Project>";
-        File.WriteAllText(projectFile, projectContent);
+    File.WriteAllText(projectFile, projectContent);
 
-        // Build the test project
-        var buildProcess = Process.Start(
-            new ProcessStartInfo
-            {
-                FileName = "dotnet",
-                Arguments = "build --configuration Release",
-                WorkingDirectory = tempDir,
-                UseShellExecute = false,
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-            });
-
-        buildProcess?.WaitForExit(30000);
-
-        if (buildProcess?.ExitCode != 0)
+    // Build the test project
+    var buildProcess = Process.Start(
+        new ProcessStartInfo
         {
-            var output = buildProcess?.StandardOutput.ReadToEnd();
-            var error = buildProcess?.StandardError.ReadToEnd();
-            Assert.Fail($"Build failed with exit code {buildProcess?.ExitCode}. Output: {output}. Error: {error}");
-        }
+          FileName = "dotnet",
+          Arguments = "build --configuration Release",
+          WorkingDirectory = tempDir,
+          UseShellExecute = false,
+          RedirectStandardOutput = true,
+          RedirectStandardError = true,
+        });
+
+    buildProcess?.WaitForExit(30000);
+
+    if (buildProcess?.ExitCode != 0)
+    {
+      var output = buildProcess?.StandardOutput.ReadToEnd();
+      var error = buildProcess?.StandardError.ReadToEnd();
+      Assert.Fail($"Build failed with exit code {buildProcess?.ExitCode}. Output: {output}. Error: {error}");
+    }
+  }
+
+  private static AnalysisService CreateService()
+  {
+    var logger = LoggerFactory.Create(_ => { }).CreateLogger<AnalysisService>();
+    return new AnalysisService(logger);
+  }
+
+  private static AnalysisService CreateService(AnalysisOptions options)
+  {
+    var logger = LoggerFactory.Create(_ => { }).CreateLogger<AnalysisService>();
+    return new AnalysisService(logger, options);
+  }
+
+  private static string GetSolutionPath()
+  {
+    var baseDir = AppContext.BaseDirectory;
+    var path = Path.Combine(baseDir, "../../../../UsageAnalyzer.sln");
+    return Path.GetFullPath(path);
+  }
+
+  private void RunCircularReferenceTest(string tempDir)
+  {
+    // Run the built executable directly
+    var exePath = Path.Combine(tempDir, "bin", "Release", "net8.0", "CircularTest.dll");
+    var runProcess = Process.Start(
+        new ProcessStartInfo
+        {
+          FileName = "dotnet",
+          Arguments = $"\"{exePath}\"",
+          UseShellExecute = false,
+          RedirectStandardOutput = true,
+          RedirectStandardError = true,
+        });
+
+    var processCompleted = runProcess?.WaitForExit(2000); // 2-second timeout
+    if (processCompleted == false)
+    {
+      // Process is likely stuck in infinite recursion - kill it
+      runProcess?.Kill();
+      runProcess?.WaitForExit(1000);
     }
 
-    private static AnalysisService CreateService()
+    // Check for specific StackOverflowException indicators
+    var runOutput = runProcess?.StandardOutput.ReadToEnd() ?? string.Empty;
+    var runError = runProcess?.StandardError.ReadToEnd() ?? string.Empty;
+
+    // Output process information for debugging
+    testOutputHelper.WriteLine($"=== Separate Process Test Results ===");
+    testOutputHelper.WriteLine($"Process Completed: {processCompleted}");
+    testOutputHelper.WriteLine($"Process HasExited: {runProcess?.HasExited}");
+    testOutputHelper.WriteLine($"Exit Code: {runProcess?.ExitCode}");
+    testOutputHelper.WriteLine($"Standard Output: '{runOutput}'");
+    testOutputHelper.WriteLine($"Standard Error: '{runError}'");
+    testOutputHelper.WriteLine($"=====================================");
+
+    Assert.True(runProcess?.HasExited, "Process should have exited");
+
+    var exitCode = runProcess?.ExitCode ?? 0;
+
+    // Check standard error for stack overflow indicators first
+    if (runError.Contains("Stack overflow", StringComparison.OrdinalIgnoreCase))
     {
-        var logger = LoggerFactory.Create(_ => { }).CreateLogger<AnalysisService>();
-        return new AnalysisService(logger);
+      Assert.True(
+          true,
+          "Successfully detected StackOverflowException in standard error - circular reference causes stack overflow as expected");
+      return;
     }
 
-    private static AnalysisService CreateService(AnalysisOptions options)
+    if (processCompleted == false)
     {
-        var logger = LoggerFactory.Create(_ => { }).CreateLogger<AnalysisService>();
-        return new AnalysisService(logger, options);
-    }
-
-    private static string GetSolutionPath()
-    {
-        var baseDir = AppContext.BaseDirectory;
-        var path = Path.Combine(baseDir, "../../../../UsageAnalyzer.sln");
-        return Path.GetFullPath(path);
-    }
-
-    private void RunCircularReferenceTest(string tempDir)
-    {
-        // Run the built executable directly
-        var exePath = Path.Combine(tempDir, "bin", "Release", "net8.0", "CircularTest.dll");
-        var runProcess = Process.Start(
-            new ProcessStartInfo
-            {
-                FileName = "dotnet",
-                Arguments = $"\"{exePath}\"",
-                UseShellExecute = false,
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-            });
-
-        var processCompleted = runProcess?.WaitForExit(2000); // 2-second timeout
-        if (processCompleted == false)
-        {
-            // Process is likely stuck in infinite recursion - kill it
-            runProcess?.Kill();
-            runProcess?.WaitForExit(1000);
-        }
-
-        // Check for specific StackOverflowException indicators
-        var runOutput = runProcess?.StandardOutput.ReadToEnd() ?? string.Empty;
-        var runError = runProcess?.StandardError.ReadToEnd() ?? string.Empty;
-
-        // Output process information for debugging
-        testOutputHelper.WriteLine($"=== Separate Process Test Results ===");
-        testOutputHelper.WriteLine($"Process Completed: {processCompleted}");
-        testOutputHelper.WriteLine($"Process HasExited: {runProcess?.HasExited}");
-        testOutputHelper.WriteLine($"Exit Code: {runProcess?.ExitCode}");
-        testOutputHelper.WriteLine($"Standard Output: '{runOutput}'");
-        testOutputHelper.WriteLine($"Standard Error: '{runError}'");
-        testOutputHelper.WriteLine($"=====================================");
-
-        Assert.True(runProcess?.HasExited, "Process should have exited");
-
-        var exitCode = runProcess?.ExitCode ?? 0;
-
-        // Check standard error for stack overflow indicators first
-        if (runError.Contains("Stack overflow", StringComparison.OrdinalIgnoreCase))
-        {
-            Assert.True(
-                true,
-                "Successfully detected StackOverflowException in standard error - circular reference causes stack overflow as expected");
-            return;
-        }
-
-        if (processCompleted == false)
-        {
-            // Process timed out - check if it produced any diagnostic output
-            if (runOutput.Contains("Thread stuck in infinite recursion"))
-            {
-                // Our test program detected infinite recursion and reported it
-                Assert.True(
-                    true,
-                    "Successfully detected infinite recursion in GetDeepMembers with circular references");
-            }
-            else if (runOutput.Contains("Starting GetDeepMembers test..."))
-            {
-                // Test started but got stuck - demonstrates infinite recursion
-                Assert.True(
-                    true,
-                    "Process got stuck after starting GetDeepMembers test - demonstrates infinite recursion issue");
-            }
-            else
-            {
-                // Process hung without expected output - unclear what happened
-                Assert.Fail(
-                    $"Process hung without expected output. This may indicate infinite recursion but we can't be certain. Output: '{runOutput}', Error: '{runError}'");
-            }
-
-            return;
-        }
-
-        // Process completed - check the exit code and output
-        if (exitCode == 2)
-        {
-            // StackOverflowException was caught (though this is rare)
-            Assert.True(
-                runOutput.Contains("StackOverflowException occurred as expected"),
-                "Expected StackOverflowException message in output");
-            return;
-        }
-
-        if (exitCode == 3)
-        {
-            // Our program detected infinite recursion via timeout
-            Assert.True(
-                runOutput.Contains("Thread stuck in infinite recursion"),
-                "Expected infinite recursion message in output");
-            return;
-        }
-
-        if (exitCode != 0)
-        {
-            // Some other crash - check if it looks like StackOverflow
-            var isStackOverflowExitCode = exitCode == -1073741571 || // Windows stack overflow
-                                          exitCode == -6 || // Unix SIGABRT
-                                          exitCode == 139 || // Unix SIGSEGV
-                                          exitCode == 134; // Unix SIGABRT alternative
-
-            if (isStackOverflowExitCode)
-            {
-                Assert.True(true, $"Process crashed with StackOverflow exit code {exitCode}");
-                return;
-            }
-
-            Assert.Fail(
-                $"Process crashed with unexpected exit code {exitCode}. Output: '{runOutput}'. Error: '{runError}'");
-            return;
-        }
-
+      // Process timed out - check if it produced any diagnostic output
+      if (runOutput.Contains("Thread stuck in infinite recursion"))
+      {
+        // Our test program detected infinite recursion and reported it
+        Assert.True(
+            true,
+            "Successfully detected infinite recursion in GetDeepMembers with circular references");
+      }
+      else if (runOutput.Contains("Starting GetDeepMembers test..."))
+      {
+        // Test started but got stuck - demonstrates infinite recursion
+        Assert.True(
+            true,
+            "Process got stuck after starting GetDeepMembers test - demonstrates infinite recursion issue");
+      }
+      else
+      {
+        // Process hung without expected output - unclear what happened
         Assert.Fail(
-            $"Process completed successfully when it should have crashed or detected infinite recursion. Output: '{runOutput}'");
+            $"Process hung without expected output. This may indicate infinite recursion but we can't be certain. Output: '{runOutput}', Error: '{runError}'");
+      }
+
+      return;
     }
+
+    // Process completed - check the exit code and output
+    if (exitCode == 2)
+    {
+      // StackOverflowException was caught (though this is rare)
+      Assert.True(
+          runOutput.Contains("StackOverflowException occurred as expected"),
+          "Expected StackOverflowException message in output");
+      return;
+    }
+
+    if (exitCode == 3)
+    {
+      // Our program detected infinite recursion via timeout
+      Assert.True(
+          runOutput.Contains("Thread stuck in infinite recursion"),
+          "Expected infinite recursion message in output");
+      return;
+    }
+
+    if (exitCode != 0)
+    {
+      // Some other crash - check if it looks like StackOverflow
+      var isStackOverflowExitCode = exitCode == -1073741571 || // Windows stack overflow
+                                    exitCode == -6 || // Unix SIGABRT
+                                    exitCode == 139 || // Unix SIGSEGV
+                                    exitCode == 134; // Unix SIGABRT alternative
+
+      if (isStackOverflowExitCode)
+      {
+        Assert.True(true, $"Process crashed with StackOverflow exit code {exitCode}");
+        return;
+      }
+
+      Assert.Fail(
+          $"Process crashed with unexpected exit code {exitCode}. Output: '{runOutput}'. Error: '{runError}'");
+      return;
+    }
+
+    Assert.Fail(
+        $"Process completed successfully when it should have crashed or detected infinite recursion. Output: '{runOutput}'");
+  }
 }

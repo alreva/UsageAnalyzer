@@ -14,7 +14,7 @@ using System.Reflection;
 /// For a User type with nested Address, this represents paths like:
 /// - "Name" (primitive property)
 /// - "Address.City" (nested object property)
-/// - "deviceId" (field in nested object).
+/// - "deviceId" (field in a nested object).
 /// </example>
 public record AnalyzedMember(
     MemberInfo Member,

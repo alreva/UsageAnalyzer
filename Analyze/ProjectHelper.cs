@@ -41,8 +41,8 @@ public static class ProjectHelper
     catch (Exception ex) when (ex is XmlException || ex is IOException)
     {
       throw new InvalidOperationException(
-        $"Failed to read Directory.Build.props at '{propsPath}'. " +
-        "Ensure the file is valid XML and accessible.", ex);
+          $"Failed to read Directory.Build.props at '{propsPath}'. Ensure the file is valid XML and accessible.",
+          ex);
     }
   }
 }

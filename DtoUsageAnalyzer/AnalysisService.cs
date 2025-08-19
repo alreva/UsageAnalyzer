@@ -94,7 +94,7 @@ public class AnalysisService
   /// For a User type with nested Address, this returns paths like:
   /// - "Name" (primitive property)
   /// - "Address.City" (nested object property)
-  /// - "deviceId" (field in nested object)
+  /// - "deviceId" (field in a nested object)
   /// - "SocialMedia.Twitter" (nested object property).
   /// </example>
   public List<AnalyzedMember> GetDeepMembers(Type type, string prefix = "")
@@ -126,47 +126,6 @@ public class AnalysisService
       prefix);
 
     return members;
-  }
-
-  private void ProcessMember(
-      MemberInfo member,
-      Type memberType,
-      string memberName,
-      Type declaringType,
-      string prefix,
-      List<AnalyzedMember> members)
-  {
-    var fullPath = string.IsNullOrEmpty(prefix) ? memberName : $"{prefix}.{memberName}";
-
-    if (IsPrimitiveOrArrayOfPrimitives(memberType))
-    {
-      members.Add(new AnalyzedMember(member, declaringType, fullPath, memberType, memberName));
-      return;
-    }
-
-    if (IsNullable(memberType))
-    {
-      var underlyingType = Nullable.GetUnderlyingType(memberType)!;
-      if (IsPrimitiveOrArrayOfPrimitives(underlyingType))
-      {
-        members.Add(new AnalyzedMember(member, declaringType, fullPath, memberType, memberName));
-      }
-      else
-      {
-        members.AddRange(this.GetDeepMembers(underlyingType, fullPath + ".Value"));
-      }
-
-      return;
-    }
-
-    if (IsGenericList(memberType))
-    {
-      var itemType = memberType.GetGenericArguments()[0];
-      members.AddRange(this.GetDeepMembers(itemType, fullPath + ".Item"));
-      return;
-    }
-
-    members.AddRange(this.GetDeepMembers(memberType, fullPath));
   }
 
   /// <summary>
@@ -662,5 +621,46 @@ public class AnalysisService
       // Wrap with contextual information for better error handling upstream
       throw new InvalidOperationException($"Failed to load project '{projectName}' from path '{projectPath}' into workspace. See inner exception for details.", ex);
     }
+  }
+
+  private void ProcessMember(
+      MemberInfo member,
+      Type memberType,
+      string memberName,
+      Type declaringType,
+      string prefix,
+      List<AnalyzedMember> members)
+  {
+    var fullPath = string.IsNullOrEmpty(prefix) ? memberName : $"{prefix}.{memberName}";
+
+    if (IsPrimitiveOrArrayOfPrimitives(memberType))
+    {
+      members.Add(new AnalyzedMember(member, declaringType, fullPath, memberType, memberName));
+      return;
+    }
+
+    if (IsNullable(memberType))
+    {
+      var underlyingType = Nullable.GetUnderlyingType(memberType)!;
+      if (IsPrimitiveOrArrayOfPrimitives(underlyingType))
+      {
+        members.Add(new AnalyzedMember(member, declaringType, fullPath, memberType, memberName));
+      }
+      else
+      {
+        members.AddRange(this.GetDeepMembers(underlyingType, fullPath + ".Value"));
+      }
+
+      return;
+    }
+
+    if (IsGenericList(memberType))
+    {
+      var itemType = memberType.GetGenericArguments()[0];
+      members.AddRange(this.GetDeepMembers(itemType, fullPath + ".Item"));
+      return;
+    }
+
+    members.AddRange(this.GetDeepMembers(memberType, fullPath));
   }
 }

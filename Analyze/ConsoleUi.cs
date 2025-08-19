@@ -211,14 +211,14 @@ public class ConsoleUi(ILogger logger)
     }
   }
 
-  private static string FormatBasedOnUsageCount(int usageCount, object value)
-  {
-    return $"[{(usageCount == 0 ? "yellow" : "green")}]{value}[/]";
-  }
-
   public void DisplayError(Exception ex)
   {
     AnsiConsole.MarkupLine($"[red]An error occurred: {ex.Message}[/]");
     logger.LogError(ex, "An error occurred during analysis");
+  }
+
+  private static string FormatBasedOnUsageCount(int usageCount, object value)
+  {
+    return $"[{(usageCount == 0 ? "yellow" : "green")}]{value}[/]";
   }
 }
