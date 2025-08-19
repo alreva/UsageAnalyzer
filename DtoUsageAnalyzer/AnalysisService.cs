@@ -110,75 +110,13 @@ public class AnalysisService
     // Get all properties
     foreach (var prop in type.GetProperties())
     {
-      var propType = prop.PropertyType;
-      var fullPath = string.IsNullOrEmpty(prefix) ? prop.Name : $"{prefix}.{prop.Name}";
-
-      if (IsPrimitiveOrArrayOfPrimitives(propType))
-      {
-        members.Add(new AnalyzedMember(prop, type, fullPath, propType, prop.Name));
-        continue;
-      }
-
-      if (IsNullable(propType))
-      {
-        var itemProp = propType.GetProperty("Value")!;
-        if (IsPrimitiveOrArrayOfPrimitives(itemProp.PropertyType))
-        {
-          members.Add(new AnalyzedMember(prop, type, fullPath, propType, prop.Name));
-        }
-        else
-        {
-          members.AddRange(this.GetDeepMembers(itemProp.PropertyType, fullPath + ".Value"));
-        }
-
-        continue;
-      }
-
-      if (IsGenericList(propType))
-      {
-        var itemProp = propType.GetProperty("Item")!;
-        members.AddRange(this.GetDeepMembers(itemProp.PropertyType, fullPath + ".Item"));
-        continue;
-      }
-
-      members.AddRange(this.GetDeepMembers(propType, fullPath));
+      this.ProcessMember(prop, prop.PropertyType, prop.Name, type, prefix, members);
     }
 
     // Get all public fields
     foreach (var field in type.GetFields(BindingFlags.Public | BindingFlags.Instance))
     {
-      var fieldType = field.FieldType;
-      var fullPath = string.IsNullOrEmpty(prefix) ? field.Name : $"{prefix}.{field.Name}";
-
-      if (IsPrimitiveOrArrayOfPrimitives(fieldType))
-      {
-        members.Add(new AnalyzedMember(field, type, fullPath, fieldType, field.Name));
-        continue;
-      }
-
-      if (IsNullable(fieldType))
-      {
-        var underlyingType = Nullable.GetUnderlyingType(fieldType)!;
-        if (IsPrimitiveOrArrayOfPrimitives(underlyingType))
-        {
-          members.Add(new AnalyzedMember(field, type, fullPath, fieldType, field.Name));
-        }
-        else
-        {
-          members.AddRange(this.GetDeepMembers(underlyingType, fullPath + ".Value"));
-        }
-
-        continue;
-      }
-
-      if (IsGenericList(fieldType))
-      {
-        var itemType = fieldType.GetGenericArguments()[0];
-        members.AddRange(this.GetDeepMembers(itemType, fullPath + ".Item"));
-        continue;
-      }
-
-      members.AddRange(this.GetDeepMembers(fieldType, fullPath));
+      this.ProcessMember(field, field.FieldType, field.Name, type, prefix, members);
     }
 
     this.logger.LogDebug(
@@ -190,21 +128,45 @@ public class AnalysisService
     return members;
   }
 
-  /// <summary>
-  /// Legacy method that returns properties only for backward compatibility.
-  /// New code should use GetDeepMembers instead.
-  /// </summary>
-  /// <param name="type">The root type to analyze for properties.</param>
-  /// <param name="prefix">Optional prefix for nested property paths.</param>
-  /// <returns>A list of tuples containing PropertyInfo, Type, and FullPath.</returns>
-  [Obsolete("Use GetDeepMembers instead to support both properties and fields")]
-  public List<(PropertyInfo Property, Type Type, string FullPath)> GetDeepProperties(Type type, string prefix = "")
+  private void ProcessMember(
+      MemberInfo member,
+      Type memberType,
+      string memberName,
+      Type declaringType,
+      string prefix,
+      List<AnalyzedMember> members)
   {
-    var members = this.GetDeepMembers(type, prefix);
-    return members
-        .Where(m => m.Member is PropertyInfo)
-        .Select(m => ((PropertyInfo)m.Member, m.DeclaringType, m.FullPath))
-        .ToList();
+    var fullPath = string.IsNullOrEmpty(prefix) ? memberName : $"{prefix}.{memberName}";
+
+    if (IsPrimitiveOrArrayOfPrimitives(memberType))
+    {
+      members.Add(new AnalyzedMember(member, declaringType, fullPath, memberType, memberName));
+      return;
+    }
+
+    if (IsNullable(memberType))
+    {
+      var underlyingType = Nullable.GetUnderlyingType(memberType)!;
+      if (IsPrimitiveOrArrayOfPrimitives(underlyingType))
+      {
+        members.Add(new AnalyzedMember(member, declaringType, fullPath, memberType, memberName));
+      }
+      else
+      {
+        members.AddRange(this.GetDeepMembers(underlyingType, fullPath + ".Value"));
+      }
+
+      return;
+    }
+
+    if (IsGenericList(memberType))
+    {
+      var itemType = memberType.GetGenericArguments()[0];
+      members.AddRange(this.GetDeepMembers(itemType, fullPath + ".Item"));
+      return;
+    }
+
+    members.AddRange(this.GetDeepMembers(memberType, fullPath));
   }
 
   /// <summary>

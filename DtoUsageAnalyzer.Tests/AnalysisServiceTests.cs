@@ -60,18 +60,6 @@ public class AnalysisServiceTests
   }
 
   [Fact]
-  public void GetDeepProperties_ReturnsNestedPaths()
-  {
-    var service = CreateService();
-    var uType = typeof(User);
-    var result = service.GetDeepProperties(uType)!;
-    var paths = result.Select(p => p.FullPath).ToList();
-    Assert.Contains("Address.City", paths);
-    Assert.Contains("SocialMedia.Twitter", paths);
-    Assert.Contains("DeviceInfo.IpAddress", paths);
-  }
-
-  [Fact]
   public void GetDeepMembers_ReturnsPropertiesAndFields()
   {
     var service = CreateService();
