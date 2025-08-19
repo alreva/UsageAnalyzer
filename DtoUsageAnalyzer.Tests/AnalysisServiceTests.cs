@@ -401,24 +401,28 @@ class Program
       var runOutput = runProcess?.StandardOutput.ReadToEnd() ?? string.Empty;
       var runError = runProcess?.StandardError.ReadToEnd() ?? string.Empty;
 
+      // Output process information for debugging
+      Console.WriteLine($"=== Separate Process Test Results ===");
+      Console.WriteLine($"Process Completed: {processCompleted}");
+      Console.WriteLine($"Process HasExited: {runProcess?.HasExited}");
+      Console.WriteLine($"Exit Code: {runProcess?.ExitCode}");
+      Console.WriteLine($"Standard Output: '{runOutput}'");
+      Console.WriteLine($"Standard Error: '{runError}'");
+      Console.WriteLine($"=====================================");
+
       Assert.True(runProcess?.HasExited == true, "Process should have exited");
 
       var exitCode = runProcess?.ExitCode ?? 0;
 
+      // Check standard error for stack overflow indicators first
+      if (runError.Contains("Stack overflow", StringComparison.OrdinalIgnoreCase))
+      {
+        Assert.True(true, "Successfully detected StackOverflowException in standard error - circular reference causes stack overflow as expected");
+        return;
+      }
+
       if (processCompleted == false)
       {
-        // Process was stuck - but we need to verify it's specifically due to GetDeepMembers infinite recursion
-        // and not some other issue (build failure, missing dependencies, etc.)
-
-        // Process timed out - check if it started our test and then got stuck
-
-        // The process hanging without any output strongly suggests it reached our GetDeepMembers call
-        // and got stuck in infinite recursion, but let's be more explicit about what we've proven
-
-        // We've demonstrated that calling GetDeepMembers(typeof(Employee)) causes the process to hang
-        // This is evidence of infinite recursion, but not definitively StackOverflowException
-        // (since StackOverflow typically crashes the process rather than hanging indefinitely)
-
         // Process timed out - check if it produced any diagnostic output
         if (runOutput.Contains("Thread stuck in infinite recursion"))
         {
@@ -435,7 +439,7 @@ class Program
         else
         {
           // Process hung without expected output - unclear what happened
-          Assert.Fail($"Process hung without expected output. This may indicate infinite recursion but we can't be certain. Output: '{runOutput}'");
+          Assert.Fail($"Process hung without expected output. This may indicate infinite recursion but we can't be certain. Output: '{runOutput}', Error: '{runError}'");
           return;
         }
       }
