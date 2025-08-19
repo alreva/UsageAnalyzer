@@ -55,6 +55,7 @@ public class UserAddressProcessorTests
                         "twitter": "twitter.com/johndoe",
                         "instagram": "instagram.com/johndoe"
                     },
+                    "socialMediaAccounts": [],
                     "deviceInfo": {
                         "deviceType": "mobile",
                         "os": "iOS",
@@ -138,6 +139,7 @@ public class UserAddressProcessorTests
                         "twitter": "twitter.com/johndoe",
                         "instagram": "instagram.com/johndoe"
                     },
+                    "socialMediaAccounts": [],
                     "deviceInfo": {
                         "deviceType": "mobile",
                         "os": "iOS",

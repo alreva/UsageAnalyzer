@@ -53,6 +53,7 @@ public class UserPreferencesProcessorTests
                         "twitter": "twitter.com/johndoe",
                         "instagram": "instagram.com/johndoe"
                     },
+                    "socialMediaAccounts": [],
                     "deviceInfo": {
                         "deviceType": "mobile",
                         "os": "iOS",

@@ -207,6 +207,29 @@ public class AnalysisServiceTests(ITestOutputHelper testOutputHelper)
   }
 
   [Fact]
+  public void GetDeepMembers_HandlesArraysOfComplexObjects()
+  {
+    var service = CreateService();
+    var result = service.GetDeepMembers(typeof(User));
+    var membersByPath = result.ToDictionary(m => m.FullPath, m => m);
+
+    // Verify array property navigation - SocialMediaAccounts is SocialMedia[]
+    Assert.True(membersByPath.ContainsKey("SocialMediaAccounts.Item.Facebook"));
+    Assert.True(membersByPath.ContainsKey("SocialMediaAccounts.Item.Twitter"));
+    Assert.True(membersByPath.ContainsKey("SocialMediaAccounts.Item.Instagram"));
+
+    // Verify the member types are correct
+    Assert.Equal(typeof(string), membersByPath["SocialMediaAccounts.Item.Facebook"].MemberType);
+    Assert.Equal(typeof(string), membersByPath["SocialMediaAccounts.Item.Twitter"].MemberType);
+    Assert.Equal(typeof(string), membersByPath["SocialMediaAccounts.Item.Instagram"].MemberType);
+
+    // Verify the names are correct
+    Assert.Equal("Facebook", membersByPath["SocialMediaAccounts.Item.Facebook"].Name);
+    Assert.Equal("Twitter", membersByPath["SocialMediaAccounts.Item.Twitter"].Name);
+    Assert.Equal("Instagram", membersByPath["SocialMediaAccounts.Item.Instagram"].Name);
+  }
+
+  [Fact]
   public void GetDeepMembers_WithCircularReference_NoStackOverflow()
   {
     // This test runs GetDeepMembers with circular reference in a separate process

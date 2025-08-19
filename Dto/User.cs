@@ -53,6 +53,8 @@ public class User
 
   public required SocialMedia SocialMedia { get; set; }
 
+  public required SocialMedia[] SocialMediaAccounts { get; set; } = [];
+
   public required DeviceInfo DeviceInfo { get; set; }
 
   public required List<ActivityLog> ActivityLog { get; set; } = new();

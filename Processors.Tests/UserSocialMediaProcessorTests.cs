@@ -55,6 +55,7 @@ public class UserSocialMediaProcessorTests
                         "twitter": "twitter.com/johndoe",
                         "instagram": "instagram.com/johndoe"
                     },
+                    "socialMediaAccounts": [],
                     "deviceInfo": {
                         "deviceType": "mobile",
                         "os": "iOS",
@@ -132,6 +133,7 @@ public class UserSocialMediaProcessorTests
                     "loyaltyPoints": 500,
                     "referralCode": "REF123",
                     "socialMedia": null,
+                    "socialMediaAccounts": [],
                     "deviceInfo": {
                         "deviceType": "mobile",
                         "os": "iOS",

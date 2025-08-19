@@ -561,7 +561,7 @@ public class AnalysisService
 
       var attribute = GetClassAndFieldName(semanticModel, usageCandidate);
       var deepMember = deepMembers
-          .SingleOrDefault(m =>
+          .FirstOrDefault(m =>
               attribute.ClassName == m.DeclaringType.Name
               && attribute.FieldName == m.Name);
 
@@ -675,6 +675,17 @@ public class AnalysisService
       else
       {
         members.AddRange(this.GetDeepMembers(underlyingType, fullPath + ".Value", visitedTypes));
+      }
+
+      return;
+    }
+
+    if (memberType.IsArray)
+    {
+      var elementType = memberType.GetElementType()!;
+      if (!IsPrimitiveOrArrayOfPrimitives(elementType))
+      {
+        members.AddRange(this.GetDeepMembers(elementType, fullPath + ".Item", visitedTypes));
       }
 
       return;

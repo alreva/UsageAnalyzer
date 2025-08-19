@@ -55,6 +55,7 @@ public class ActivityLogProcessorTests
                         "twitter": "twitter.com/johndoe",
                         "instagram": "instagram.com/johndoe"
                     },
+                    "socialMediaAccounts": [],
                     "deviceInfo": {
                         "deviceType": "mobile",
                         "os": "iOS",
@@ -142,6 +143,7 @@ public class ActivityLogProcessorTests
                         "twitter": "twitter.com/johndoe",
                         "instagram": "instagram.com/johndoe"
                     },
+                    "socialMediaAccounts": [],
                     "deviceInfo": {
                         "deviceType": "mobile",
                         "os": "iOS",

@@ -58,6 +58,14 @@ public class UserEventDtoTests
           Twitter = "twitter.com/johndoe",
           Instagram = "instagram.com/johndoe",
         },
+        SocialMediaAccounts = [
+          new SocialMedia
+          {
+            Facebook = "facebook.com/johndoe_business",
+            Twitter = "twitter.com/johndoe_biz",
+            Instagram = "instagram.com/johndoe_shop",
+          }
+        ],
         DeviceInfo = new DeviceInfo
         {
           DeviceType = "mobile",
