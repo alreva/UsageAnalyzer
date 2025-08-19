@@ -207,7 +207,7 @@ public class AnalysisServiceTests(ITestOutputHelper testOutputHelper)
   }
 
   [Fact]
-  public void GetDeepMembers_WithCircularReference_CausesStackOverflow()
+  public void GetDeepMembers_WithCircularReference_NoStackOverflow()
   {
     // This test runs GetDeepMembers with circular reference in a separate process
     // to verify it actually causes a StackOverflowException
@@ -392,7 +392,15 @@ class Program
       runProcess?.WaitForExit(1000);
     }
 
-    // Check for specific StackOverflowException indicators
+    Assert.True(runProcess?.HasExited, "Process should have exited");
+
+    var exitCode = runProcess?.ExitCode ?? 0;
+
+    if (exitCode == 0)
+    {
+      return;
+    }
+
     var runOutput = runProcess?.StandardOutput.ReadToEnd() ?? string.Empty;
     var runError = runProcess?.StandardError.ReadToEnd() ?? string.Empty;
 
@@ -404,86 +412,6 @@ class Program
     testOutputHelper.WriteLine($"Standard Output: '{runOutput}'");
     testOutputHelper.WriteLine($"Standard Error: '{runError}'");
     testOutputHelper.WriteLine($"=====================================");
-
-    Assert.True(runProcess?.HasExited, "Process should have exited");
-
-    var exitCode = runProcess?.ExitCode ?? 0;
-
-    // Check standard error for stack overflow indicators first
-    if (runError.Contains("Stack overflow", StringComparison.OrdinalIgnoreCase))
-    {
-      Assert.True(
-          true,
-          "Successfully detected StackOverflowException in standard error - circular reference causes stack overflow as expected");
-      return;
-    }
-
-    if (processCompleted == false)
-    {
-      // Process timed out - check if it produced any diagnostic output
-      if (runOutput.Contains("Thread stuck in infinite recursion"))
-      {
-        // Our test program detected infinite recursion and reported it
-        Assert.True(
-            true,
-            "Successfully detected infinite recursion in GetDeepMembers with circular references");
-      }
-      else if (runOutput.Contains("Starting GetDeepMembers test..."))
-      {
-        // Test started but got stuck - demonstrates infinite recursion
-        Assert.True(
-            true,
-            "Process got stuck after starting GetDeepMembers test - demonstrates infinite recursion issue");
-      }
-      else
-      {
-        // Process hung without expected output - unclear what happened
-        Assert.Fail(
-            $"Process hung without expected output. This may indicate infinite recursion but we can't be certain. Output: '{runOutput}', Error: '{runError}'");
-      }
-
-      return;
-    }
-
-    // Process completed - check the exit code and output
-    if (exitCode == 2)
-    {
-      // StackOverflowException was caught (though this is rare)
-      Assert.True(
-          runOutput.Contains("StackOverflowException occurred as expected"),
-          "Expected StackOverflowException message in output");
-      return;
-    }
-
-    if (exitCode == 3)
-    {
-      // Our program detected infinite recursion via timeout
-      Assert.True(
-          runOutput.Contains("Thread stuck in infinite recursion"),
-          "Expected infinite recursion message in output");
-      return;
-    }
-
-    if (exitCode != 0)
-    {
-      // Some other crash - check if it looks like StackOverflow
-      var isStackOverflowExitCode = exitCode == -1073741571 || // Windows stack overflow
-                                    exitCode == -6 || // Unix SIGABRT
-                                    exitCode == 139 || // Unix SIGSEGV
-                                    exitCode == 134; // Unix SIGABRT alternative
-
-      if (isStackOverflowExitCode)
-      {
-        Assert.True(true, $"Process crashed with StackOverflow exit code {exitCode}");
-        return;
-      }
-
-      Assert.Fail(
-          $"Process crashed with unexpected exit code {exitCode}. Output: '{runOutput}'. Error: '{runError}'");
-      return;
-    }
-
-    Assert.Fail(
-        $"Process completed successfully when it should have crashed or detected infinite recursion. Output: '{runOutput}'");
+    Assert.Fail($"Process exited with exit code {exitCode}");
   }
 }

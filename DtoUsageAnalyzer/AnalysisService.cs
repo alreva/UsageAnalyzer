@@ -85,7 +85,6 @@ public class AnalysisService
   /// Recursively discovers all members (properties and fields) in a type hierarchy, including nested objects and collections.
   /// </summary>
   /// <param name="type">The root type to analyze for members.</param>
-  /// <param name="prefix">Optional prefix for nested member paths (used internally for recursion).</param>
   /// <returns>
   /// A list of AnalyzedMember objects containing member information and metadata.
   /// </returns>
@@ -97,35 +96,61 @@ public class AnalysisService
   /// - "deviceId" (field in a nested object)
   /// - "SocialMedia.Twitter" (nested object property).
   /// </example>
-  public List<AnalyzedMember> GetDeepMembers(Type type, string prefix = "")
+  public List<AnalyzedMember> GetDeepMembers(Type type)
+  {
+    return this.GetDeepMembers(type, string.Empty, new HashSet<Type>());
+  }
+
+  private List<AnalyzedMember> GetDeepMembers(Type type, string prefix, HashSet<Type> visitedTypes)
   {
     ValidateObjectParameter(type, nameof(type));
 
-    var members = new List<AnalyzedMember>();
-    this.logger.LogDebug(
-      "Starting deep member discovery for type {TypeName} with prefix '{Prefix}'",
-      type.Name,
-      prefix);
-
-    // Get all properties
-    foreach (var prop in type.GetProperties())
+    // Check for circular reference
+    if (visitedTypes.Contains(type))
     {
-      this.ProcessMember(prop, prop.PropertyType, prop.Name, type, prefix, members);
+      this.logger.LogDebug(
+        "Circular reference detected for type {TypeName} with prefix '{Prefix}' - skipping to prevent infinite recursion",
+        type.Name,
+        prefix);
+      return new List<AnalyzedMember>();
     }
 
-    // Get all public fields
-    foreach (var field in type.GetFields(BindingFlags.Public | BindingFlags.Instance))
+    // Add current type to visited set
+    visitedTypes.Add(type);
+
+    try
     {
-      this.ProcessMember(field, field.FieldType, field.Name, type, prefix, members);
+      var members = new List<AnalyzedMember>();
+      this.logger.LogDebug(
+        "Starting deep member discovery for type {TypeName} with prefix '{Prefix}'",
+        type.Name,
+        prefix);
+
+      // Get all properties
+      foreach (var prop in type.GetProperties())
+      {
+        this.ProcessMember(prop, prop.PropertyType, prop.Name, type, prefix, members, visitedTypes);
+      }
+
+      // Get all public fields
+      foreach (var field in type.GetFields(BindingFlags.Public | BindingFlags.Instance))
+      {
+        this.ProcessMember(field, field.FieldType, field.Name, type, prefix, members, visitedTypes);
+      }
+
+      this.logger.LogDebug(
+        "Completed deep member discovery for type {TypeName}. Found {MemberCount} members with prefix '{Prefix}'",
+        type.Name,
+        members.Count,
+        prefix);
+
+      return members;
     }
-
-    this.logger.LogDebug(
-      "Completed deep member discovery for type {TypeName}. Found {MemberCount} members with prefix '{Prefix}'",
-      type.Name,
-      members.Count,
-      prefix);
-
-    return members;
+    finally
+    {
+      // Remove type from visited set when done processing this branch
+      visitedTypes.Remove(type);
+    }
   }
 
   /// <summary>
@@ -629,7 +654,8 @@ public class AnalysisService
       string memberName,
       Type declaringType,
       string prefix,
-      List<AnalyzedMember> members)
+      List<AnalyzedMember> members,
+      HashSet<Type> visitedTypes)
   {
     var fullPath = string.IsNullOrEmpty(prefix) ? memberName : $"{prefix}.{memberName}";
 
@@ -648,7 +674,7 @@ public class AnalysisService
       }
       else
       {
-        members.AddRange(this.GetDeepMembers(underlyingType, fullPath + ".Value"));
+        members.AddRange(this.GetDeepMembers(underlyingType, fullPath + ".Value", visitedTypes));
       }
 
       return;
@@ -657,10 +683,10 @@ public class AnalysisService
     if (IsGenericList(memberType))
     {
       var itemType = memberType.GetGenericArguments()[0];
-      members.AddRange(this.GetDeepMembers(itemType, fullPath + ".Item"));
+      members.AddRange(this.GetDeepMembers(itemType, fullPath + ".Item", visitedTypes));
       return;
     }
 
-    members.AddRange(this.GetDeepMembers(memberType, fullPath));
+    members.AddRange(this.GetDeepMembers(memberType, fullPath, visitedTypes));
   }
 }
