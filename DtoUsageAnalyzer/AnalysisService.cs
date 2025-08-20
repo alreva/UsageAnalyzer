@@ -34,20 +34,20 @@ public class AnalysisService
   }
 
   /// <summary>
-  /// Determines if a type is a primitive type, string, or an array/collection of primitives.
+  /// Determines if a type is a primitive type, string, enum, or an array/collection of primitives.
   /// </summary>
   /// <param name="type">The type to check.</param>
   /// <returns>
-  /// True if the type is a primitive (int, bool, etc.), string, decimal, DateTime,
-  /// or an array/IEnumerable of primitives; otherwise false.
+  /// True if the type is a primitive (int, bool, etc.), string, decimal, DateTime, enum,
+  /// or an array/IEnumerable of primitives/enums; otherwise false.
   /// </returns>
   /// <example>
-  /// Returns true for: int, string, DateTime, int[], List&lt;string&gt;
+  /// Returns true for: int, string, DateTime, MyEnum, int[], List&lt;string&gt;, MyEnum[]
   /// Returns false for: custom classes, complex objects.
   /// </example>
   public static bool IsPrimitiveOrArrayOfPrimitives(Type type)
   {
-    if (type.IsPrimitive || type == typeof(string) || type == typeof(decimal) || type == typeof(DateTime))
+    if (type.IsPrimitive || type == typeof(string) || type == typeof(decimal) || type == typeof(DateTime) || type.IsEnum)
     {
       return true;
     }
@@ -55,13 +55,13 @@ public class AnalysisService
     if (type.IsArray)
     {
       var elementType = type.GetElementType();
-      return elementType != null && (elementType.IsPrimitive || elementType == typeof(string));
+      return elementType != null && (elementType.IsPrimitive || elementType == typeof(string) || elementType.IsEnum);
     }
 
     if (IsGenericEnumerable(type))
     {
       var elementType = type.GetGenericArguments()[0];
-      return elementType.IsPrimitive || elementType == typeof(string);
+      return elementType.IsPrimitive || elementType == typeof(string) || elementType.IsEnum;
     }
 
     return false;
@@ -98,136 +98,7 @@ public class AnalysisService
   /// </example>
   public List<AnalyzedMember> GetDeepMembers(Type type)
   {
-    return this.GetDeepMembers(type, string.Empty, new HashSet<Type>());
-  }
-
-  private List<AnalyzedMember> GetDeepMembers(Type type, string prefix, HashSet<Type> visitedTypes)
-  {
-    ValidateObjectParameter(type, nameof(type));
-
-    // Check for circular reference
-    if (visitedTypes.Contains(type))
-    {
-      this.logger.LogDebug(
-        "Circular reference detected for type {TypeName} with prefix '{Prefix}' - skipping to prevent infinite recursion",
-        type.Name,
-        prefix);
-      return new List<AnalyzedMember>();
-    }
-
-    // Add current type to visited set
-    visitedTypes.Add(type);
-
-    try
-    {
-      var members = new List<AnalyzedMember>();
-      this.logger.LogDebug(
-        "Starting deep member discovery for type {TypeName} with prefix '{Prefix}'",
-        type.Name,
-        prefix);
-
-      // Get all properties
-      foreach (var prop in type.GetProperties())
-      {
-        this.ProcessMember(prop, prop.PropertyType, prop.Name, type, prefix, members, visitedTypes);
-      }
-
-      // Get all public fields
-      foreach (var field in type.GetFields(BindingFlags.Public | BindingFlags.Instance))
-      {
-        this.ProcessMember(field, field.FieldType, field.Name, type, prefix, members, visitedTypes);
-      }
-
-      this.logger.LogDebug(
-        "Completed deep member discovery for type {TypeName}. Found {MemberCount} members with prefix '{Prefix}'",
-        type.Name,
-        members.Count,
-        prefix);
-
-      return members;
-    }
-    finally
-    {
-      // Remove type from visited set when done processing this branch
-      visitedTypes.Remove(type);
-    }
-  }
-
-  /// <summary>
-  /// Loads types from an assembly file and optionally filters for classes in a specific namespace.
-  /// </summary>
-  /// <param name="dtoAssemblyPath">Absolute path to the compiled assembly (.dll file).</param>
-  /// <param name="namespaceFilter">Optional namespace to filter types. If null or empty, returns all class types.</param>
-  /// <returns>Array of Type objects representing classes found in the assembly.</returns>
-  /// <exception cref="InvalidAnalysisInputException">Thrown when dtoAssemblyPath is null or empty.</exception>
-  /// <exception cref="AssemblyLoadException">Thrown when the assembly file doesn't exist or contains no matching types.</exception>
-  /// <example>
-  /// <code>
-  /// var types = GetDtoAssemblyTypes("/path/to/Dto.dll", "Dto");
-  /// // Returns types from the "Dto" namespace
-  /// var allTypes = GetDtoAssemblyTypes("/path/to/Dto.dll");
-  /// // Returns all class types from any namespace
-  /// </code>
-  /// </example>
-  /// <remarks>
-  /// Ensure the assembly project is built before calling this method.
-  /// </remarks>
-  public Type[] GetDtoAssemblyTypes(string dtoAssemblyPath, string? namespaceFilter = DtoNamespace)
-  {
-    ValidateStringParameter(dtoAssemblyPath, nameof(dtoAssemblyPath));
-
-    var fileExists = File.Exists(dtoAssemblyPath);
-    if (!fileExists)
-    {
-      this.logger.LogError(
-        "Assembly file not found. AssemblyPath: {AssemblyPath}, ErrorType: {ErrorType}",
-        dtoAssemblyPath,
-        "FileNotFound");
-      throw AssemblyLoadException.FileNotFound(dtoAssemblyPath);
-    }
-
-    try
-    {
-      this.logger.LogDebug("Loading DTO assembly from {AssemblyPath}", dtoAssemblyPath);
-
-      var assembly = AssemblyLoadContext.Default.LoadFromAssemblyPath(dtoAssemblyPath);
-      var types = assembly.GetTypes()
-          .Where(t => t.IsClass && (string.IsNullOrEmpty(namespaceFilter) || t.Namespace == namespaceFilter))
-          .ToArray();
-
-      if (types.Length == 0)
-      {
-        var filterDescription = string.IsNullOrEmpty(namespaceFilter) ? "any namespace" : $"namespace '{namespaceFilter}'";
-        this.logger.LogError(
-          "No class types found in assembly. AssemblyPath: {AssemblyPath}, NamespaceFilter: {NamespaceFilter}, TotalTypes: {TotalTypes}",
-          dtoAssemblyPath,
-          filterDescription,
-          assembly.GetTypes().Length);
-        throw AssemblyLoadException.NoTypesFound(dtoAssemblyPath, filterDescription);
-      }
-
-      this.logger.LogDebug(
-        "Successfully loaded {TypeCount} DTO types from {AssemblyPath}: {TypeNames}",
-        types.Length,
-        dtoAssemblyPath,
-        string.Join(", ", types.Select(t => t.Name)));
-
-      return types;
-    }
-    catch (Exception ex) when (ex is BadImageFormatException || ex is FileLoadException)
-    {
-      this.logger.LogError(
-        ex,
-        "Failed to load assembly. AssemblyPath: {AssemblyPath}, ErrorType: {ErrorType}, FileExists: {FileExists}",
-        dtoAssemblyPath,
-        ex.GetType().Name,
-        fileExists);
-
-      throw new AssemblyLoadException(
-        dtoAssemblyPath,
-        "Assembly file is corrupted or not a valid .NET assembly.",
-        ex);
-    }
+    return this.GetDeepMembers(type, string.Empty, []);
   }
 
   /// <summary>
@@ -260,93 +131,170 @@ public class AnalysisService
       string solutionPath,
       Type selectedClass)
   {
-    ValidateStringParameter(solutionPath, nameof(solutionPath));
-    ValidateObjectParameter(selectedClass, nameof(selectedClass));
+      ValidateStringParameter(solutionPath, nameof(solutionPath));
+      ValidateObjectParameter(selectedClass, nameof(selectedClass));
 
-    var fileExists = File.Exists(solutionPath);
-    if (!fileExists)
-    {
-      this.logger.LogError(
-        "Solution file not found. SolutionPath: {SolutionPath}, ErrorType: {ErrorType}",
-        solutionPath,
-        "FileNotFound");
-      throw SolutionLoadException.FileNotFound(solutionPath);
-    }
-
-    this.logger.LogDebug("Starting analysis for class: {SelectedClassFullName}", selectedClass.FullName);
-    var propertyUsage = new Dictionary<UsageKey, int>();
-
-    // Find member references (properties and fields)
-    var deepMembers = this.GetDeepMembers(selectedClass);
-    this.logger.LogDebug(
-        "Found {Count} deep members in {CurrentTypeFullName}",
-        deepMembers.Count,
-        selectedClass.FullName);
-
-    var solution = this.LoadSolutionWorkspace(solutionPath);
-
-    foreach (var project in solution.Projects)
-    {
-      // Skip projects matching exclude patterns
-      if (ShouldSkipProject(project.Name, this.options.ExcludePatterns))
+      var fileExists = File.Exists(solutionPath);
+      if (!fileExists)
       {
-        this.logger.LogInformation("Skipping project {ProjectName} (matches exclude pattern).", project.Name);
-        continue;
+          this.logger.LogError(
+              "Solution file not found. SolutionPath: {SolutionPath}, ErrorType: {ErrorType}",
+              solutionPath,
+              "FileNotFound");
+          throw SolutionLoadException.FileNotFound(solutionPath);
       }
 
-      var compilation = await SetupProjectCompilation(project, selectedClass.Assembly.Location);
-      if (compilation == null)
+      this.logger.LogDebug("Starting analysis for class: {SelectedClassFullName}", selectedClass.FullName);
+      var propertyUsage = new Dictionary<UsageKey, int>();
+
+      // Find member references (properties and fields)
+      var deepMembers = this.GetDeepMembers(selectedClass);
+      this.logger.LogDebug(
+          "Found {Count} deep members in {CurrentTypeFullName}",
+          deepMembers.Count,
+          selectedClass.FullName);
+
+      var solution = this.LoadSolutionWorkspace(solutionPath);
+
+      foreach (var project in solution.Projects)
       {
-        continue;
+          // Skip projects matching exclude patterns
+          if (ShouldSkipProject(project.Name, this.options.ExcludePatterns))
+          {
+              this.logger.LogInformation("Skipping project {ProjectName} (matches exclude pattern).", project.Name);
+              continue;
+          }
+
+          var compilation = await SetupProjectCompilation(project, selectedClass.Assembly.Location);
+          if (compilation == null)
+          {
+              continue;
+          }
+
+          await this.AnalyzeProjectDocuments(project, compilation, deepMembers, propertyUsage, selectedClass);
       }
 
-      await this.AnalyzeProjectDocuments(project, compilation, deepMembers, propertyUsage, selectedClass);
-    }
-
-    // add unused members from deepMembers:
-    foreach (var deepMember in deepMembers)
-    {
-      var attribute = new ClassAndField(deepMember.DeclaringType.Name, deepMember.Name);
-
-      if (propertyUsage.Any(k => k.Key.Attribute == attribute))
+      // add unused members from deepMembers:
+      foreach (var deepMember in deepMembers)
       {
-        continue; // already exists
+          var attribute = new ClassAndField(deepMember.DeclaringType.Name, deepMember.Name);
+
+          if (propertyUsage.Any(k => k.Key.Attribute == attribute))
+          {
+              continue; // already exists
+          }
+
+          UsageKey key = new(UnusedPropertyFilePath, attribute);
+          propertyUsage.TryAdd(key, 0);
       }
 
-      UsageKey key = new(UnusedPropertyFilePath, attribute);
-      propertyUsage.TryAdd(key, 0);
-    }
+      var results = propertyUsage.Select(kvp => new PropertyUsage(kvp.Key, kvp.Value)).ToList();
+      var totalUsages = results.Sum(r => r.UsageCount);
+      var unusedProperties = results.Count(r => r.UsageCount == 0);
 
-    var results = propertyUsage.Select(kvp => new PropertyUsage(kvp.Key, kvp.Value)).ToList();
-    var totalUsages = results.Sum(r => r.UsageCount);
-    var unusedProperties = results.Count(r => r.UsageCount == 0);
+      this.logger.LogInformation(
+          "Analysis completed for class {ClassName} in solution {SolutionPath}. " +
+          "MembersAnalyzed: {MemberCount}, TotalUsages: {TotalUsages}, UnusedMembers: {UnusedMembers}, ExcludePatterns: {ExcludePatterns}",
+          selectedClass.Name,
+          solutionPath,
+          results.Count,
+          totalUsages,
+          unusedProperties,
+          string.Join(", ", this.options.ExcludePatterns));
 
-    this.logger.LogInformation(
-      "Analysis completed for class {ClassName} in solution {SolutionPath}. " +
-      "MembersAnalyzed: {MemberCount}, TotalUsages: {TotalUsages}, UnusedMembers: {UnusedMembers}, ExcludePatterns: {ExcludePatterns}",
-      selectedClass.Name,
-      solutionPath,
-      results.Count,
-      totalUsages,
-      unusedProperties,
-      string.Join(", ", this.options.ExcludePatterns));
+      return results;
+  }
 
-    return results;
+  /// <summary>
+  /// Loads types from an assembly file and optionally filters for classes in a specific namespace.
+  /// </summary>
+  /// <param name="dtoAssemblyPath">Absolute path to the compiled assembly (.dll file).</param>
+  /// <param name="namespaceFilter">Optional namespace to filter types. If null or empty, returns all class types.</param>
+  /// <returns>Array of Type objects representing classes found in the assembly.</returns>
+  /// <exception cref="InvalidAnalysisInputException">Thrown when dtoAssemblyPath is null or empty.</exception>
+  /// <exception cref="AssemblyLoadException">Thrown when the assembly file doesn't exist or contains no matching types.</exception>
+  /// <example>
+  /// <code>
+  /// var types = GetDtoAssemblyTypes("/path/to/Dto.dll", "Dto");
+  /// // Returns types from the "Dto" namespace
+  /// var allTypes = GetDtoAssemblyTypes("/path/to/Dto.dll");
+  /// // Returns all class types from any namespace
+  /// </code>
+  /// </example>
+  /// <remarks>
+  /// Ensure the assembly project is built before calling this method.
+  /// </remarks>
+  public Type[] GetDtoAssemblyTypes(string dtoAssemblyPath, string? namespaceFilter = DtoNamespace)
+  {
+      ValidateStringParameter(dtoAssemblyPath, nameof(dtoAssemblyPath));
+
+      var fileExists = File.Exists(dtoAssemblyPath);
+      if (!fileExists)
+      {
+          this.logger.LogError(
+              "Assembly file not found. AssemblyPath: {AssemblyPath}, ErrorType: {ErrorType}",
+              dtoAssemblyPath,
+              "FileNotFound");
+          throw AssemblyLoadException.FileNotFound(dtoAssemblyPath);
+      }
+
+      try
+      {
+          this.logger.LogDebug("Loading DTO assembly from {AssemblyPath}", dtoAssemblyPath);
+
+          var assembly = AssemblyLoadContext.Default.LoadFromAssemblyPath(dtoAssemblyPath);
+          var types = assembly.GetTypes()
+              .Where(t => t.IsClass && (string.IsNullOrEmpty(namespaceFilter) || t.Namespace == namespaceFilter))
+              .ToArray();
+
+          if (types.Length == 0)
+          {
+              var filterDescription = string.IsNullOrEmpty(namespaceFilter) ? "any namespace" : $"namespace '{namespaceFilter}'";
+              this.logger.LogError(
+                  "No class types found in assembly. AssemblyPath: {AssemblyPath}, NamespaceFilter: {NamespaceFilter}, TotalTypes: {TotalTypes}",
+                  dtoAssemblyPath,
+                  filterDescription,
+                  assembly.GetTypes().Length);
+              throw AssemblyLoadException.NoTypesFound(dtoAssemblyPath, filterDescription);
+          }
+
+          this.logger.LogDebug(
+              "Successfully loaded {TypeCount} DTO types from {AssemblyPath}: {TypeNames}",
+              types.Length,
+              dtoAssemblyPath,
+              string.Join(", ", types.Select(t => t.Name)));
+
+          return types;
+      }
+      catch (Exception ex) when (ex is BadImageFormatException || ex is FileLoadException)
+      {
+          this.logger.LogError(
+              ex,
+              "Failed to load assembly. AssemblyPath: {AssemblyPath}, ErrorType: {ErrorType}, FileExists: {FileExists}",
+              dtoAssemblyPath,
+              ex.GetType().Name,
+              fileExists);
+
+          throw new AssemblyLoadException(
+              dtoAssemblyPath,
+              "Assembly file is corrupted or not a valid .NET assembly.",
+              ex);
+      }
   }
 
   private static async Task<Compilation?> SetupProjectCompilation(Project project, string assemblyPath)
   {
-    var coreAssemblyPath = Path.GetDirectoryName(typeof(object).Assembly.Location)!;
-    return (await project.GetCompilationAsync())?
-        .AddReferences(
-            MetadataReference.CreateFromFile(typeof(object).Assembly.Location),
-            MetadataReference.CreateFromFile(Path.Combine(coreAssemblyPath, "System.Runtime.dll")),
-            MetadataReference.CreateFromFile(Path.Combine(coreAssemblyPath, "System.Collections.dll")),
-            MetadataReference.CreateFromFile(Path.Combine(coreAssemblyPath, "System.Console.dll")),
-            MetadataReference.CreateFromFile(typeof(List<>).Assembly.Location),
-            MetadataReference.CreateFromFile(typeof(Enumerable).Assembly.Location),
-            MetadataReference.CreateFromFile(typeof(Console).Assembly.Location),
-            MetadataReference.CreateFromFile(assemblyPath));
+      var coreAssemblyPath = Path.GetDirectoryName(typeof(object).Assembly.Location)!;
+      return (await project.GetCompilationAsync())?
+          .AddReferences(
+              MetadataReference.CreateFromFile(typeof(object).Assembly.Location),
+              MetadataReference.CreateFromFile(Path.Combine(coreAssemblyPath, "System.Runtime.dll")),
+              MetadataReference.CreateFromFile(Path.Combine(coreAssemblyPath, "System.Collections.dll")),
+              MetadataReference.CreateFromFile(Path.Combine(coreAssemblyPath, "System.Console.dll")),
+              MetadataReference.CreateFromFile(typeof(List<>).Assembly.Location),
+              MetadataReference.CreateFromFile(typeof(Enumerable).Assembly.Location),
+              MetadataReference.CreateFromFile(typeof(Console).Assembly.Location),
+              MetadataReference.CreateFromFile(assemblyPath));
   }
 
   private static bool ShouldSkipProject(string projectName, string[] excludePatterns)
@@ -442,6 +390,55 @@ public class AnalysisService
     {
       throw InvalidAnalysisInputException.Null(parameterName);
     }
+  }
+
+  private List<AnalyzedMember> GetDeepMembers(Type type, string prefix, HashSet<Type> visitedTypes)
+  {
+      ValidateObjectParameter(type, nameof(type));
+
+      // Check for circular reference
+      if (!visitedTypes.Add(type))
+      {
+          this.logger.LogDebug(
+              "Circular reference detected for type {TypeName} with prefix '{Prefix}' - skipping to prevent infinite recursion",
+              type.Name,
+              prefix);
+          return [];
+      }
+
+      try
+      {
+          var members = new List<AnalyzedMember>();
+          this.logger.LogDebug(
+              "Starting deep member discovery for type {TypeName} with prefix '{Prefix}'",
+              type.Name,
+              prefix);
+
+          // Get all properties
+          foreach (var prop in type.GetProperties())
+          {
+              this.ProcessMember(prop, prop.PropertyType, prop.Name, type, prefix, members, visitedTypes);
+          }
+
+          // Get all public fields
+          foreach (var field in type.GetFields(BindingFlags.Public | BindingFlags.Instance))
+          {
+              this.ProcessMember(field, field.FieldType, field.Name, type, prefix, members, visitedTypes);
+          }
+
+          this.logger.LogDebug(
+              "Completed deep member discovery for type {TypeName}. Found {MemberCount} members with prefix '{Prefix}'",
+              type.Name,
+              members.Count,
+              prefix);
+
+          return members;
+      }
+      finally
+      {
+          // Remove type from visited set when done processing this branch
+          visitedTypes.Remove(type);
+      }
   }
 
   private Solution LoadSolutionWorkspace(string solutionPath)

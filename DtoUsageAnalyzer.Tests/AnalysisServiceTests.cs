@@ -39,6 +39,9 @@ public class AnalysisServiceTests(ITestOutputHelper testOutputHelper)
     Assert.True(AnalysisService.IsPrimitiveOrArrayOfPrimitives(typeof(DateTime)));
     Assert.True(AnalysisService.IsPrimitiveOrArrayOfPrimitives(typeof(string[])));
     Assert.True(AnalysisService.IsPrimitiveOrArrayOfPrimitives(typeof(List<int>)));
+    Assert.True(AnalysisService.IsPrimitiveOrArrayOfPrimitives(typeof(DayOfWeek))); // enum
+    Assert.True(AnalysisService.IsPrimitiveOrArrayOfPrimitives(typeof(DayOfWeek[]))); // enum array
+    Assert.True(AnalysisService.IsPrimitiveOrArrayOfPrimitives(typeof(List<DayOfWeek>))); // enum list
     Assert.False(AnalysisService.IsPrimitiveOrArrayOfPrimitives(typeof(DeviceInfo)));
   }
 
